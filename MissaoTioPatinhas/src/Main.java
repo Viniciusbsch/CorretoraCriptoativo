@@ -581,27 +581,63 @@ public class Main {
 
     // Métodos para persistência em arquivo (a serem implementados)
     private static void salvarUsuariosEmArquivo() {
-        // TODO: Implementar gravação dos dados de usuários em arquivo texto
-        // Deverá percorrer listaUsuarios ou mapaUsuarios e gravar em arquivo
-        // Sugestão de arquivo: "usuarios.txt"
+        try (FileWriter fw = new FileWriter("usuarios.txt");
+             BufferedWriter bw = new BufferedWriter(fw)) {
+
+            for (Usuario usuario : listaUsuarios) {
+                bw.write(String.format("%s;%s;%s\n",
+                        usuario.getNome(),
+                        usuario.getEmail(),
+                        usuario.getCpf()
+                ));
+            }
+        } catch (IOException e) {
+            System.out.println("Erro ao salvar usuários: " + e.getMessage());
+        }
     }
 
     private static void carregarUsuariosDoArquivo() {
-        // TODO: Implementar leitura dos dados de usuários do arquivo texto
-        // Deverá ler o arquivo e popular listaUsuarios e mapaUsuarios
-        // Sugestão de arquivo: "usuarios.txt"
+        try (FileReader fr = new FileReader("usuarios.txt");
+             BufferedReader br = new BufferedReader(fr)) {
+
+            String linha;
+            while ((linha = br.readLine()) != null) {
+                String[] dados = linha.split(";");
+                if (dados.length == 3) {
+                    Usuario usuario = new Usuario(dados[0], dados[1], dados[2]);
+                    listaUsuarios.add(usuario);
+                    mapaUsuarios.put(dados[1], usuario);
+                    credenciais.put(dados[1], dados[2]);
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Erro ao carregar usuários: " + e.getMessage());
+        }
     }
 
     private static void salvarLogAutenticacao() {
-        // TODO: Implementar gravação do log de autenticação em arquivo texto
-        // Deverá percorrer logAutenticacao e gravar em arquivo
-        // Sugestão de arquivo: "log_autenticacao.txt"
+        try (FileWriter fw = new FileWriter("log_autenticacao.txt", true);
+             BufferedWriter bw = new BufferedWriter(fw)) {
+
+            for (String log : logAutenticacao) {
+                bw.write(log + "\n");
+            }
+        } catch (IOException e) {
+            System.out.println("Erro ao salvar log: " + e.getMessage());
+        }
     }
 
     private static void carregarLogAutenticacao() {
-        // TODO: Implementar leitura do log de autenticação do arquivo texto
-        // Deverá ler o arquivo e popular logAutenticacao
-        // Sugestão de arquivo: "log_autenticacao.txt"
+        try (FileReader fr = new FileReader("log_autenticacao.txt");
+             BufferedReader br = new BufferedReader(fr)) {
+
+            String linha;
+            while ((linha = br.readLine()) != null) {
+                logAutenticacao.add(linha);
+            }
+        } catch (IOException e) {
+            System.out.println("Erro ao carregar log: " + e.getMessage());
+        }
     }
 
     // Método auxiliar para garantir que os dados sejam salvos ao encerrar
