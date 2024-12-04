@@ -14,7 +14,7 @@ public class ConsultaCriptoativo {
 
     public Criptoativo buscarCriptoativo(String nome) {
         for (Criptoativo criptoativo : criptoativos) {
-            if (criptoativo.getNomeDoCriptoativo().equalsIgnoreCase(nome)) {
+            if (criptoativo.getNomeCriptoativo().equalsIgnoreCase(nome)) {
                 return criptoativo;
             }
         }
@@ -23,7 +23,8 @@ public class ConsultaCriptoativo {
 
     public void exibirTodosCriptoativos() {
         for (Criptoativo criptoativo : criptoativos) {
-            criptoativo.exibirInformacoes();
+            System.out.println("Nome: " + criptoativo.getNomeCriptoativo() +
+                    ", Sigla: " + criptoativo.getSigla());
         }
     }
 }
