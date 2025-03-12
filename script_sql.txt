@@ -1,0 +1,35 @@
+CREATE TABLE usuarios (
+    id_usuario NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nome VARCHAR2(100) NOT NULL,
+    email VARCHAR2(100) UNIQUE NOT NULL,
+    senha VARCHAR2(100) NOT NULL
+);
+
+CREATE TABLE carteiras (
+    id_carteira NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_usuario NUMBER NOT NULL,
+    id_criptoativo NUMBER, -- A ser preenchido quando o usuário comprar uma moeda
+    quantidade NUMBER DEFAULT 0, -- Começa com zero moedas
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+);
+
+CREATE TABLE criptoativos (
+    id_criptoativo NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nome VARCHAR2(50) NOT NULL,
+    sigla VARCHAR2(10) NOT NULL UNIQUE,
+    preco_atual NUMBER NOT NULL -- Preço em dólares, por exemplo
+);
+
+INSERT INTO criptoativos (nome, sigla, preco_atual) VALUES ('Bitcoin', 'BTC', 65000);
+INSERT INTO criptoativos (nome, sigla, preco_atual) VALUES ('Ethereum', 'ETH', 3500);
+INSERT INTO criptoativos (nome, sigla, preco_atual) VALUES ('Solana', 'SOL', 150);
+INSERT INTO criptoativos (nome, sigla, preco_atual) VALUES ('Ripple', 'XRP', 0.55);
+COMMIT;
+
+ALTER TABLE usuarios ADD saldo NUMBER DEFAULT 0 NOT NULL;
+
+ALTER TABLE carteiras DROP COLUMN saldo;
+ALTER TABLE usuario add COLUMN saldo;
+DELETE FROM carteiras;
+
+select * from carteiras
