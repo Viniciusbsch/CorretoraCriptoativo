@@ -1,5 +1,7 @@
 package org.example.classes.MissaoTioPatinhas.src;
 
+import org.example.factory.ConnectionFactory;
+
 import java.io.*;
 import java.util.Scanner;
 import java.text.DecimalFormat;
@@ -8,6 +10,10 @@ import java.util.List;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class Main {
     private static Scanner scanner = new Scanner(System.in);
@@ -37,6 +43,7 @@ public class Main {
             System.out.println("│ 1. Fazer Login                              │");
             System.out.println("│ 2. Criar Novo Usuário                       │");
             System.out.println("│ 3. Listar Usuários Cadastrados              │");
+            System.out.println("│ 4. Menu Banco de Dados                       │");
             System.out.println("│ 0. Sair                                     │");
             System.out.println("└─────────────────────────────────────────────┘");
             System.out.print("Escolha uma opção: ");
@@ -54,6 +61,9 @@ public class Main {
                         break;
                     case 3:
                         listarUsuarios();
+                        break;
+                    case 4:
+                        menuBancoDeDados();
                         break;
                     case 0:
                         System.out.println("\nObrigado por usar nossos serviços!");
@@ -120,7 +130,7 @@ public class Main {
         logAutenticacao.add("Cadastro: " + email + " - " + LocalDateTime.now());
 
         // Salva o usuário no banco de dados
-        novoUsuario.salvarNoBanco();
+        novoUsuario.salvarNoBanco(senha);
 
         System.out.println("\n✅ Usuário cadastrado com sucesso!");
         System.out.println("Deseja fazer login agora? (S/N)");
@@ -591,6 +601,205 @@ public class Main {
         SuporteAoCliente.getInstancia().criarTicket(usuarioAtual, assunto, descricao);
     }
 
+    private static void menuBancoDeDados() {
+        while (true) {
+            System.out.println("\n┌─────────── MENU BANCO DE DADOS ──────────────────┐");
+            System.out.println("│ 1. Inserir novo usuário                           │");
+            System.out.println("│ 2. Buscar usuário por CPF                         │");
+            System.out.println("│ 3. Listar todos os usuários                       │");
+            System.out.println("│ 4. Atualizar usuário                              │");
+            System.out.println("│ 5. Excluir usuário                                │");
+            System.out.println("│ 0. Voltar ao menu principal                       │");
+            System.out.println("└─────────────────────────────────────────────────────┘");
+            System.out.print("Escolha uma opção: ");
+
+            try {
+                int opcao = scanner.nextInt();
+                scanner.nextLine(); // Limpar buffer
+
+                switch (opcao) {
+                    case 1:
+                        inserirUsuarioBD();
+                        break;
+                    case 2:
+                        buscarUsuarioPorCpfBD();
+                        break;
+                    case 3:
+                        listarTodosUsuariosBD();
+                        break;
+                    case 4:
+                        atualizarUsuarioBD();
+                        break;
+                    case 5:
+                        excluirUsuarioBD();
+                        break;
+                    case 0:
+                        return;
+                    default:
+                        System.out.println("\n⚠️ Opção inválida!");
+                }
+            } catch (Exception e) {
+                System.out.println("\n⚠️ Entrada inválida!");
+                scanner.nextLine(); // Limpar buffer
+            }
+        }
+    }
+
+    private static void inserirUsuarioBD() {
+        System.out.println("\n═══ INSERIR NOVO USUÁRIO ═══");
+        
+        System.out.print("Nome completo: ");
+        String nome = scanner.nextLine().trim();
+        
+        System.out.print("CPF: ");
+        String cpf = scanner.nextLine().trim();
+        
+        System.out.print("Email: ");
+        String email = scanner.nextLine().trim();
+        
+        System.out.print("Senha: ");
+        String senha = scanner.nextLine().trim();
+        
+        if (nome.isEmpty() || cpf.isEmpty() || email.isEmpty() || senha.isEmpty()) {
+            System.out.println("\n⚠️ Todos os campos são obrigatórios!");
+            return;
+        }
+        
+        Usuario usuario = new Usuario(nome, cpf, email);
+        usuario.salvarNoBanco(senha);
+        
+        System.out.println("\n✅ Usuário inserido com sucesso no banco de dados!");
+    }
+    
+    private static void buscarUsuarioPorCpfBD() {
+        System.out.println("\n═══ BUSCAR USUÁRIO POR CPF ═══");
+        
+        System.out.print("CPF: ");
+        String cpf = scanner.nextLine().trim();
+        
+        if (cpf.isEmpty()) {
+            System.out.println("\n⚠️ CPF é obrigatório!");
+            return;
+        }
+        
+        Usuario usuario = Usuario.buscarPorCpf(cpf);
+        
+        if (usuario != null) {
+            System.out.println("\n═══ USUÁRIO ENCONTRADO ═══");
+            System.out.println("Nome: " + usuario.getNome());
+            System.out.println("CPF: " + usuario.getCpf());
+            System.out.println("Email: " + usuario.getEmail());
+        } else {
+            System.out.println("\n⚠️ Usuário não encontrado!");
+        }
+    }
+    
+    private static void listarTodosUsuariosBD() {
+        System.out.println("\n═══ TODOS OS USUÁRIOS ═══");
+        
+        List<Usuario> usuarios = Usuario.listarTodos();
+        
+        if (usuarios.isEmpty()) {
+            System.out.println("\n⚠️ Nenhum usuário encontrado!");
+            return;
+        }
+        
+        for (Usuario usuario : usuarios) {
+            System.out.println("─────────────────────────");
+            System.out.println("Nome: " + usuario.getNome());
+            System.out.println("CPF: " + usuario.getCpf());
+            System.out.println("Email: " + usuario.getEmail());
+        }
+        System.out.println("─────────────────────────");
+        System.out.println("Total de usuários: " + usuarios.size());
+    }
+    
+    private static void atualizarUsuarioBD() {
+        System.out.println("\n═══ ATUALIZAR USUÁRIO ═══");
+        
+        System.out.print("CPF do usuário a ser atualizado: ");
+        String cpf = scanner.nextLine().trim();
+        
+        if (cpf.isEmpty()) {
+            System.out.println("\n⚠️ CPF é obrigatório!");
+            return;
+        }
+        
+        Usuario usuario = Usuario.buscarPorCpf(cpf);
+        
+        if (usuario == null) {
+            System.out.println("\n⚠️ Usuário não encontrado!");
+            return;
+        }
+        
+        System.out.println("\nDados atuais:");
+        System.out.println("Nome: " + usuario.getNome());
+        System.out.println("Email: " + usuario.getEmail());
+        
+        System.out.println("\nNovos dados (deixe em branco para manter o valor atual):");
+        
+        System.out.print("Novo nome: ");
+        String novoNome = scanner.nextLine().trim();
+        
+        System.out.print("Novo email: ");
+        String novoEmail = scanner.nextLine().trim();
+        
+        if (!novoNome.isEmpty()) {
+            usuario.setNome(novoNome);
+        }
+        
+        if (!novoEmail.isEmpty()) {
+            usuario.setEmail(novoEmail);
+        }
+        
+        boolean resultado = usuario.atualizar();
+        
+        if (resultado) {
+            System.out.println("\n✅ Usuário atualizado com sucesso!");
+        } else {
+            System.out.println("\n⚠️ Erro ao atualizar usuário!");
+        }
+    }
+    
+    private static void excluirUsuarioBD() {
+        System.out.println("\n═══ EXCLUIR USUÁRIO ═══");
+        
+        System.out.print("CPF do usuário a ser excluído: ");
+        String cpf = scanner.nextLine().trim();
+        
+        if (cpf.isEmpty()) {
+            System.out.println("\n⚠️ CPF é obrigatório!");
+            return;
+        }
+        
+        Usuario usuario = Usuario.buscarPorCpf(cpf);
+        
+        if (usuario == null) {
+            System.out.println("\n⚠️ Usuário não encontrado!");
+            return;
+        }
+        
+        System.out.println("\nDados do usuário a ser excluído:");
+        System.out.println("Nome: " + usuario.getNome());
+        System.out.println("CPF: " + usuario.getCpf());
+        System.out.println("Email: " + usuario.getEmail());
+        
+        System.out.print("\nConfirma a exclusão? (S/N): ");
+        String confirmacao = scanner.nextLine().trim();
+        
+        if (confirmacao.equalsIgnoreCase("S")) {
+            boolean resultado = usuario.excluir();
+            
+            if (resultado) {
+                System.out.println("\n✅ Usuário excluído com sucesso!");
+            } else {
+                System.out.println("\n⚠️ Erro ao excluir usuário!");
+            }
+        } else {
+            System.out.println("\n⚠️ Exclusão cancelada!");
+        }
+    }
+
     // Métodos para persistência em arquivo (a serem implementados)
     private static void salvarUsuariosEmArquivo() {
         try (FileWriter fw = new FileWriter("MissaoTioPatinhas/src/usuarios.txt");
@@ -664,3 +873,4 @@ public class Main {
         carregarLogAutenticacao();
     }
 }
+
