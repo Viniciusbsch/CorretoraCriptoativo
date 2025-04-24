@@ -52,7 +52,7 @@
             <manifest>
               <addClasspath>true</addClasspath>
               <classpathPrefix>lib/</classpathPrefix>
-              <mainClass>org.example.App</mainClass>
+              <mainClass>org.example.ui.Main</mainClass>
             </manifest>
           </archive>
         </configuration>
@@ -62,7 +62,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.1.0</version>
         <configuration>
-          <mainClass>org.example.App</mainClass>
+          <mainClass>org.example.ui.Main</mainClass>
         </configuration>
       </plugin>
     </plugins>

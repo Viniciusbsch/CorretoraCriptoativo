@@ -1,40 +1,53 @@
-package org.example.classes.MissaoTioPatinhas.src;
+package org.example.ui;
 
-import org.example.factory.ConnectionFactory;
+import org.example.model.Carteira;
+import org.example.model.Conta;
+import org.example.model.Criptoativo;
+import org.example.model.Transacao;
+import org.example.model.Usuario;
+import org.example.exception.CorretoraException;
+import org.example.service.AuthService;
+import org.example.service.CarteiraService;
+import org.example.service.ContaService;
+import org.example.service.CriptoativoService;
+import org.example.service.TransacaoService;
 
-import java.io.*;
+import java.sql.SQLException;
+import java.util.Optional;
 import java.util.Scanner;
 import java.text.DecimalFormat;
-import java.util.Map;
 import java.util.List;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.math.BigDecimal;
 
 public class Main {
     private static Scanner scanner = new Scanner(System.in);
     private static DecimalFormat df = new DecimalFormat("#,##0.00");
-    private static Corretora corretora = Corretora.getInstancia();
     private static Usuario usuarioAtual = null;
     private static Conta contaAtual = null;
-
-    private static ArrayList<Usuario> listaUsuarios = new ArrayList<>();
-    private static HashMap<String, Usuario> mapaUsuarios = new HashMap<>();
-    private static HashMap<String, String> credenciais = new HashMap<>();
-    private static ArrayList<String> logAutenticacao = new ArrayList<>();
+    private static AuthService authService;
+    private static ContaService contaService;
+    private static CriptoativoService criptoativoService;
+    private static CarteiraService carteiraService;
+    private static TransacaoService transacaoService;
 
     public static void main(String[] args) {
         System.out.println("╔══════════════════════════════════════════╗");
         System.out.println("║         CORRETORA DE CRIPTOATIVOS        ║");
         System.out.println("╚══════════════════════════════════════════╝");
 
-        carregarDados(); // Carrega dados dos arquivos ao iniciar
+        try {
+            authService = new AuthService();
+            contaService = new ContaService();
+            criptoativoService = new CriptoativoService();
+            carteiraService = new CarteiraService();
+            transacaoService = new TransacaoService();
+        } catch (RuntimeException e) {
+            System.err.println("Erro fatal ao inicializar serviços: " + e.getMessage());
+            e.printStackTrace();
+            return;
+        }
+
         menuAutenticacao();
-        salvarDados();   // Salva dados em arquivos ao encerrar
     }
 
     private static void menuAutenticacao() {
@@ -43,14 +56,13 @@ public class Main {
             System.out.println("│ 1. Fazer Login                              │");
             System.out.println("│ 2. Criar Novo Usuário                       │");
             System.out.println("│ 3. Listar Usuários Cadastrados              │");
-            System.out.println("│ 4. Menu Banco de Dados                       │");
             System.out.println("│ 0. Sair                                     │");
             System.out.println("└─────────────────────────────────────────────┘");
             System.out.print("Escolha uma opção: ");
 
             try {
                 int opcao = scanner.nextInt();
-                scanner.nextLine(); // Limpar buffer
+                scanner.nextLine();
 
                 switch (opcao) {
                     case 1:
@@ -62,9 +74,6 @@ public class Main {
                     case 3:
                         listarUsuarios();
                         break;
-                    case 4:
-                        menuBancoDeDados();
-                        break;
                     case 0:
                         System.out.println("\nObrigado por usar nossos serviços!");
                         return;
@@ -72,7 +81,7 @@ public class Main {
                         System.out.println("\n⚠️ Opção inválida!");
                 }
             } catch (Exception e) {
-                System.out.println("\n⚠️ Entrada inválida!");
+                System.out.println("\n⚠️ Entrada inválida! Por favor, insira um número.");
                 scanner.nextLine();
             }
         }
@@ -85,13 +94,23 @@ public class Main {
         System.out.print("Senha: ");
         String senha = scanner.nextLine().trim();
 
-        if (credenciais.containsKey(email) && credenciais.get(email).equals(senha)) {
-            usuarioAtual = mapaUsuarios.get(email);
-            logAutenticacao.add("Login: " + email + " - " + LocalDateTime.now());
-            System.out.println("\n✅ Login realizado com sucesso!");
-            menuPrincipal();
-        } else {
-            System.out.println("\n⚠️ Email ou senha incorretos!");
+        try {
+            Optional<Usuario> usuarioOpt = authService.autenticarUsuario(email, senha);
+
+            if (usuarioOpt.isPresent()) {
+                usuarioAtual = usuarioOpt.get();
+                System.out.println("\n✅ Login realizado com sucesso! Bem-vindo(a), " + usuarioAtual.getNome() + "!");
+                contaAtual = null;
+                menuPrincipal();
+                usuarioAtual = null;
+                contaAtual = null;
+            } else {
+                System.out.println("\n⚠️ Email ou senha incorretos!");
+            }
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados durante o login: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado durante o login: " + e.getMessage());
         }
     }
 
@@ -101,13 +120,13 @@ public class Main {
         System.out.print("Nome completo: ");
         String nome = scanner.nextLine().trim();
 
-        System.out.print("CPF: ");
-        String cpf = scanner.nextLine().trim();
+        System.out.print("CPF (apenas números): ");
+        String cpf = scanner.nextLine().trim().replaceAll("[^0-9]", "");
 
         System.out.print("Email: ");
         String email = scanner.nextLine().trim();
 
-        System.out.print("Senha: ");
+        System.out.print("Senha (máx 10 caracteres): ");
         String senha = scanner.nextLine().trim();
 
         if (nome.isEmpty() || cpf.isEmpty() || email.isEmpty() || senha.isEmpty()) {
@@ -115,43 +134,56 @@ public class Main {
             return;
         }
 
-        if (mapaUsuarios.containsKey(email)) {
-            System.out.println("\n⚠️ Este email já está cadastrado!");
-            return;
-        }
+        try {
+            Usuario novoUsuario = authService.cadastrarUsuario(nome, cpf, email, senha);
+            System.out.println("\n✅ Usuário cadastrado com sucesso! ID: " + novoUsuario.getId());
 
-        // Cria o novo usuário
-        Usuario novoUsuario = new Usuario(nome, cpf, email);
-
-        // Adiciona o usuário às listas e mapas
-        listaUsuarios.add(novoUsuario);
-        mapaUsuarios.put(email, novoUsuario);
-        credenciais.put(email, senha);
-        logAutenticacao.add("Cadastro: " + email + " - " + LocalDateTime.now());
-
-        // Salva o usuário no banco de dados
-        novoUsuario.salvarNoBanco(senha);
-
-        System.out.println("\n✅ Usuário cadastrado com sucesso!");
-        System.out.println("Deseja fazer login agora? (S/N)");
-
-        if (scanner.nextLine().trim().equalsIgnoreCase("S")) {
-            usuarioAtual = novoUsuario;
-            menuPrincipal();
+            System.out.println("Deseja fazer login agora? (S/N)");
+            if (scanner.nextLine().trim().equalsIgnoreCase("S")) {
+                Optional<Usuario> usuarioOpt = authService.autenticarUsuario(email, senha);
+                if (usuarioOpt.isPresent()) {
+                    usuarioAtual = usuarioOpt.get();
+                    System.out.println("\n✅ Login realizado com sucesso! Bem-vindo(a), " + usuarioAtual.getNome() + "!");
+                    contaAtual = null;
+                    menuPrincipal();
+                    usuarioAtual = null;
+                    contaAtual = null;
+                } else {
+                    System.out.println("\n⚠️ Falha ao fazer login automático. Por favor, tente manualmente.");
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("\n⚠️ Erro ao cadastrar: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados durante o cadastro: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado durante o cadastro: " + e.getMessage());
         }
     }
 
     private static void listarUsuarios() {
-        if (listaUsuarios.isEmpty()) {
-            System.out.println("\n⚠️ Nenhum usuário cadastrado!");
-            return;
-        }
-
         System.out.println("\n═══ USUÁRIOS CADASTRADOS ═══");
-        for (Usuario usuario : listaUsuarios) {
-            System.out.println("Nome: " + usuario.getNome());
-            System.out.println("Email: " + usuario.getEmail());
-            System.out.println("─────────────────────────");
+        try {
+            List<Usuario> usuarios = authService.listarTodosUsuarios();
+
+            if (usuarios.isEmpty()) {
+                System.out.println("\nℹ️ Nenhum usuário cadastrado no momento.");
+                return;
+            }
+
+            for (Usuario usuario : usuarios) {
+                System.out.println("ID: " + usuario.getId());
+                System.out.println("Nome: " + usuario.getNome());
+                System.out.println("Email: " + usuario.getEmail());
+                System.out.println("CPF: " + usuario.getCpf());
+                System.out.println("─────────────────────────");
+            }
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados ao listar usuários: " + e.getMessage());
+        } catch (UnsupportedOperationException e) {
+             System.out.println("\n⚠️ Funcionalidade 'listarTodosUsuarios' ainda não implementada no AuthService.");
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado ao listar usuários: " + e.getMessage());
         }
     }
 
@@ -169,7 +201,7 @@ public class Main {
 
             try {
                 int opcao = scanner.nextInt();
-                scanner.nextLine(); // Limpar buffer
+                scanner.nextLine();
 
                 switch (opcao) {
                     case 1:
@@ -179,17 +211,32 @@ public class Main {
                         acessarConta();
                         break;
                     case 3:
-                        corretora.exibirReservaCriptoativos();
+                        try {
+                            List<Criptoativo> criptoativos = criptoativoService.listarTodosCriptoativos();
+                            if (criptoativos.isEmpty()) {
+                                System.out.println("\nℹ️ Nenhum criptoativo disponível no momento.");
+                            } else {
+                                System.out.println("\n═══ CRIPTOATIVOS DISPONÍVEIS ═══");
+                                for (Criptoativo cripto : criptoativos) {
+                                    System.out.println("ID: " + cripto.id());
+                                    System.out.println("Nome: " + cripto.nomeCriptoativo());
+                                    System.out.println("Sigla: " + cripto.sigla());
+                                    System.out.println("─────────────────────────");
+                                }
+                            }
+                        } catch (SQLException e) {
+                            System.out.println("\n❌ Erro ao listar criptoativos: " + e.getMessage());
+                        }
                         break;
                     case 4:
                         if (usuarioAtual != null) {
-                            usuarioAtual.exibirContas();
+                            listarContas();
                         } else {
                             System.out.println("\n⚠️ Você precisa criar uma conta primeiro!");
                         }
                         break;
                     case 5:
-                        menuSuporte();
+                        System.out.println("\nℹ️ Funcionalidade de suporte temporariamente indisponível.");
                         break;
                     case 0:
                         System.out.println("\nObrigado por usar nossos serviços!");
@@ -199,7 +246,7 @@ public class Main {
                 }
             } catch (Exception e) {
                 System.out.println("\n⚠️ Entrada inválida!");
-                scanner.nextLine(); // Limpar buffer
+                scanner.nextLine();
             }
         }
     }
@@ -219,7 +266,7 @@ public class Main {
             System.out.print("Escolha uma opção: ");
 
             int opcao = scanner.nextInt();
-            scanner.nextLine(); // Limpar buffer
+            scanner.nextLine();
 
             switch (opcao) {
                 case 1:
@@ -235,10 +282,10 @@ public class Main {
                     exibirCarteiras();
                     break;
                 case 5:
-                    contaAtual.exibirHistoricoTransacoes();
+                    exibirHistoricoTransacoes();
                     break;
                 case 6:
-                    PainelAnalise.exibirAnalise(contaAtual);
+                    System.out.println("\nℹ️ Funcionalidade de painel de análise temporariamente indisponível.");
                     break;
                 case 0:
                     contaAtual = null;
@@ -250,627 +297,405 @@ public class Main {
     }
 
     private static void criarConta() {
+        System.out.println("\n═══ CRIAR NOVA CONTA ═══");
+        
         if (usuarioAtual == null) {
-            System.out.println("\nPrimeiro, vamos cadastrar seus dados:");
-
-            System.out.print("Nome: ");
-            String nome = scanner.nextLine();
-
-            System.out.print("CPF: ");
-            String cpf = scanner.nextLine();
-
-            System.out.print("Email: ");
-            String email = scanner.nextLine();
-
-            usuarioAtual = new Usuario(nome, cpf, email);
+            System.out.println("\n⚠️ Usuário não está logado. Faça login primeiro.");
+            return;
         }
-
-        usuarioAtual.criarConta();
-        String numeroConta = usuarioAtual.getContas().get(usuarioAtual.getContas().size() - 1).getNumeroConta();
-
-        System.out.println("\n✅ Conta criada com sucesso!");
-        System.out.println("Número da conta: " + numeroConta);
-        System.out.println("Deseja acessar esta conta agora? (S/N)");
-
-        if (scanner.nextLine().equalsIgnoreCase("S")) {
-            contaAtual = usuarioAtual.getConta(numeroConta);
-            menuConta();
+        
+        try {
+            Conta novaConta = contaService.criarConta(usuarioAtual);
+            System.out.println("\n✅ Conta criada com sucesso!");
+            System.out.println("Número da conta: " + novaConta.getNumeroConta());
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            System.out.println("\n⚠️ " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
         }
     }
 
     private static void acessarConta() {
+        System.out.println("\n═══ ACESSAR CONTA ═══");
+        
         if (usuarioAtual == null) {
-            System.out.println("\n⚠️ Você precisa criar uma conta primeiro!");
+            System.out.println("\n⚠️ Usuário não está logado. Faça login primeiro.");
             return;
         }
-
-        usuarioAtual.exibirContas();
-
-        System.out.print("\nDigite o número da conta que deseja acessar: ");
-        String numeroConta = scanner.nextLine();
-
-        Conta conta = usuarioAtual.getConta(numeroConta);
-        if (conta != null) {
-            contaAtual = conta;
+        
+        try {
+            List<Conta> contas = contaService.buscarContasPorUsuario(usuarioAtual);
+            
+            if (contas.isEmpty()) {
+                System.out.println("\nℹ️ Você não possui nenhuma conta. Crie uma nova conta primeiro.");
+                return;
+            }
+            
+            System.out.println("\nSuas contas disponíveis:");
+            for (int i = 0; i < contas.size(); i++) {
+                System.out.println((i + 1) + ". " + contas.get(i).getNumeroConta());
+            }
+            
+            System.out.print("\nSelecione o número da conta: ");
+            int opcao = scanner.nextInt();
+            scanner.nextLine();
+            
+            if (opcao < 1 || opcao > contas.size()) {
+                System.out.println("\n⚠️ Opção inválida!");
+                return;
+            }
+            
+            contaAtual = contas.get(opcao - 1);
+            System.out.println("\n✅ Conta " + contaAtual.getNumeroConta() + " selecionada com sucesso!");
             menuConta();
-        } else {
-            System.out.println("\n⚠️ Conta não encontrada!");
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
+        }
+    }
+    
+    private static void listarContas() {
+        System.out.println("\n═══ MINHAS CONTAS ═══");
+        
+        try {
+            List<Conta> contas = contaService.buscarContasPorUsuario(usuarioAtual);
+            
+            if (contas.isEmpty()) {
+                System.out.println("\nℹ️ Você não possui nenhuma conta. Crie uma nova conta primeiro.");
+                return;
+            }
+            
+            for (Conta conta : contas) {
+                System.out.println("Número da conta: " + conta.getNumeroConta());
+                System.out.println("ID: " + conta.getId());
+                System.out.println("─────────────────────────");
+            }
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
         }
     }
 
     private static void realizarCompra() {
+        System.out.println("\n═══ COMPRAR CRIPTOATIVO ═══");
+        
         try {
-            System.out.println("\n═══ COMPRA DE CRIPTOATIVO ═══");
-
-            corretora.exibirReservaCriptoativos();
-
-            System.out.print("\nDigite o ID do criptoativo desejado: ");
-            String idInput = scanner.nextLine().trim();
-            if (idInput.isEmpty()) {
-                throw new CorretoraException("ID do criptoativo não pode estar vazio!");
+            // 1. Listar criptoativos disponíveis
+            List<Criptoativo> criptoativos = criptoativoService.listarTodosCriptoativos();
+            
+            if (criptoativos.isEmpty()) {
+                System.out.println("\nℹ️ Não há criptoativos disponíveis para compra no momento.");
+                return;
             }
-
-            int idCripto = Integer.parseInt(idInput);
-            Criptoativo cripto = corretora.getCriptoativoPorId(idCripto);
-            if (cripto == null) {
-                throw new CorretoraException("ID de criptoativo inválido!");
+            
+            System.out.println("\nCriptoativos disponíveis para compra:");
+            for (Criptoativo cripto : criptoativos) {
+                System.out.println(cripto.id() + ". " + cripto.nomeCriptoativo() + " (" + cripto.sigla() + ")");
             }
-
-            System.out.print("Digite a quantidade desejada: ");
-            String quantidadeInput = scanner.nextLine().trim();
-            if (quantidadeInput.isEmpty()) {
-                throw new CorretoraException("Quantidade não pode estar vazia!");
+            
+            // 2. Solicitar o ID do criptoativo
+            System.out.print("\nDigite o ID do criptoativo que deseja comprar: ");
+            long idCriptoativo = scanner.nextLong();
+            scanner.nextLine();
+            
+            Optional<Criptoativo> criptoOpt = criptoativoService.buscarCriptoativoPorId(idCriptoativo);
+            if (criptoOpt.isEmpty()) {
+                System.out.println("\n⚠️ Criptoativo não encontrado!");
+                return;
             }
-
-            double quantidade;
-            try {
-                quantidade = Double.parseDouble(quantidadeInput);
-            } catch (NumberFormatException e) {
-                throw new CorretoraException("Quantidade inválida! Use apenas números e ponto decimal.");
+            
+            Criptoativo criptoativo = criptoOpt.get();
+            
+            // 3. Solicitar a quantidade e o preço
+            System.out.print("Quantidade a comprar: ");
+            double quantidadeDouble = scanner.nextDouble();
+            scanner.nextLine();
+            
+            System.out.print("Preço atual (por unidade): ");
+            double precoAtualDouble = scanner.nextDouble();
+            scanner.nextLine();
+            
+            BigDecimal quantidade = BigDecimal.valueOf(quantidadeDouble);
+            BigDecimal precoAtual = BigDecimal.valueOf(precoAtualDouble);
+            
+            // 4. Calcular o valor total
+            BigDecimal valorTotal = quantidade.multiply(precoAtual);
+            
+            // 5. Confirmar a compra
+            System.out.println("\nResumo da compra:");
+            System.out.println("Criptoativo: " + criptoativo.nomeCriptoativo() + " (" + criptoativo.sigla() + ")");
+            System.out.println("Quantidade: " + quantidade);
+            System.out.println("Preço unitário: R$ " + df.format(precoAtual));
+            System.out.println("Valor total: R$ " + df.format(valorTotal));
+            
+            System.out.print("\nConfirmar compra? (S/N): ");
+            String confirmacao = scanner.nextLine();
+            
+            if (!confirmacao.equalsIgnoreCase("S")) {
+                System.out.println("\nⓘ Compra cancelada pelo usuário.");
+                return;
             }
-
-            if (quantidade <= 0) {
-                throw new CorretoraException("A quantidade deve ser maior que zero!");
-            }
-
-            double precoAtual = 50000.0;
-
-            contaAtual.adicionarCarteira(cripto);
-            if (!contaAtual.comprar(cripto, quantidade, precoAtual)) {
-                throw new CorretoraException("Não foi possível realizar a compra!");
-            }
-
+            
+            // 6. Realizar a compra
+            transacaoService.comprarCriptoativo(contaAtual, criptoativo, quantidade, precoAtual);
+            
             System.out.println("\n✅ Compra realizada com sucesso!");
-            System.out.println("Criptoativo: " + cripto.getNomeCriptoativo() + " (" + cripto.getSigla() + ")");
-            System.out.println("Quantidade: " + df.format(quantidade));
-
+            
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
         } catch (CorretoraException e) {
             System.out.println("\n⚠️ " + e.getMessage());
-        } catch (NumberFormatException e) {
-            System.out.println("\n⚠️ Erro: Entrada numérica inválida!");
+        } catch (IllegalArgumentException e) {
+            System.out.println("\n⚠️ " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("\n⚠️ Erro inesperado: " + e.getMessage());
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     private static void realizarVenda() {
+        System.out.println("\n═══ VENDER CRIPTOATIVO ═══");
+        
         try {
-            System.out.println("\n═══ VENDA DE CRIPTOATIVO ═══");
-
-            if (contaAtual.getCarteiras().isEmpty()) {
-                throw new CorretoraException("Você não possui criptoativos para vender!");
+            // 1. Mostrar carteiras do usuário (para ele saber o que pode vender)
+            List<Carteira> carteiras = carteiraService.buscarCarteirasPorConta(contaAtual);
+            
+            if (carteiras.isEmpty()) {
+                System.out.println("\nℹ️ Você não possui criptoativos para vender.");
+                return;
             }
-
-            exibirCarteiras();
-
-            System.out.print("\nDigite o ID do criptoativo: ");
-            String idInput = scanner.nextLine().trim();
-            if (idInput.isEmpty()) {
-                throw new CorretoraException("ID do criptoativo não pode estar vazio!");
+            
+            System.out.println("\nSeus criptoativos disponíveis para venda:");
+            for (int i = 0; i < carteiras.size(); i++) {
+                Carteira carteira = carteiras.get(i);
+                System.out.println((i + 1) + ". " + 
+                                   carteira.getCriptoativo().nomeCriptoativo() + 
+                                   " (" + carteira.getCriptoativo().sigla() + ")" +
+                                   " - Saldo: " + carteira.getSaldo());
             }
-
-            int idCripto = Integer.parseInt(idInput);
-            Criptoativo cripto = getCriptoativoPorId(idCripto, contaAtual);
-            if (cripto == null) {
-                throw new CorretoraException("ID de criptoativo inválido!");
+            
+            // 2. Solicitar qual criptoativo vender
+            System.out.print("\nSelecione o número do criptoativo que deseja vender: ");
+            int opcao = scanner.nextInt();
+            scanner.nextLine();
+            
+            if (opcao < 1 || opcao > carteiras.size()) {
+                System.out.println("\n⚠️ Opção inválida!");
+                return;
             }
-
-            Carteira carteira = contaAtual.getCarteira(cripto.getNomeCriptoativo());
-            if (carteira == null || carteira.getSaldo() <= 0) {
-                throw new CorretoraException("Você não possui " + cripto.getNomeCriptoativo() + " para vender!");
+            
+            Carteira carteiraSelecionada = carteiras.get(opcao - 1);
+            Criptoativo criptoativo = carteiraSelecionada.getCriptoativo();
+            
+            // 3. Solicitar a quantidade e o preço
+            System.out.println("Saldo disponível: " + carteiraSelecionada.getSaldo());
+            System.out.print("Quantidade a vender: ");
+            double quantidadeDouble = scanner.nextDouble();
+            scanner.nextLine();
+            
+            BigDecimal quantidade = BigDecimal.valueOf(quantidadeDouble);
+            
+            // Verificar se tem saldo suficiente
+            if (quantidade.compareTo(carteiraSelecionada.getSaldo()) > 0) {
+                System.out.println("\n⚠️ Saldo insuficiente para venda!");
+                return;
             }
-
-            System.out.print("Digite a quantidade a vender: ");
-            String quantidadeInput = scanner.nextLine().trim();
-            if (quantidadeInput.isEmpty()) {
-                throw new CorretoraException("Quantidade não pode estar vazia!");
+            
+            System.out.print("Preço atual (por unidade): ");
+            double precoAtualDouble = scanner.nextDouble();
+            scanner.nextLine();
+            
+            BigDecimal precoAtual = BigDecimal.valueOf(precoAtualDouble);
+            
+            // 4. Calcular o valor total
+            BigDecimal valorTotal = quantidade.multiply(precoAtual);
+            
+            // 5. Confirmar a venda
+            System.out.println("\nResumo da venda:");
+            System.out.println("Criptoativo: " + criptoativo.nomeCriptoativo() + " (" + criptoativo.sigla() + ")");
+            System.out.println("Quantidade: " + quantidade);
+            System.out.println("Preço unitário: R$ " + df.format(precoAtual));
+            System.out.println("Valor total a receber: R$ " + df.format(valorTotal));
+            
+            System.out.print("\nConfirmar venda? (S/N): ");
+            String confirmacao = scanner.nextLine();
+            
+            if (!confirmacao.equalsIgnoreCase("S")) {
+                System.out.println("\nⓘ Venda cancelada pelo usuário.");
+                return;
             }
-
-            double quantidade;
-            try {
-                quantidade = Double.parseDouble(quantidadeInput);
-            } catch (NumberFormatException e) {
-                throw new CorretoraException("Quantidade inválida! Use apenas números e ponto decimal.");
-            }
-
-            if (quantidade <= 0) {
-                throw new CorretoraException("A quantidade deve ser maior que zero!");
-            }
-
-            if (quantidade > carteira.getSaldo()) {
-                throw new CorretoraException("Saldo insuficiente! Você possui apenas " +
-                        df.format(carteira.getSaldo()) + " " + cripto.getSigla());
-            }
-
-            double precoAtual = 50000.0;
-
-            if (!contaAtual.vender(cripto, quantidade, precoAtual)) {
-                throw new CorretoraException("Não foi possível realizar a venda!");
-            }
-
+            
+            // 6. Realizar a venda
+            transacaoService.venderCriptoativo(contaAtual, criptoativo, quantidade, precoAtual);
+            
             System.out.println("\n✅ Venda realizada com sucesso!");
-            System.out.println("Criptoativo: " + cripto.getNomeCriptoativo() + " (" + cripto.getSigla() + ")");
-            System.out.println("Quantidade: " + df.format(quantidade));
-
+            
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
         } catch (CorretoraException e) {
             System.out.println("\n⚠️ " + e.getMessage());
-        } catch (NumberFormatException e) {
-            System.out.println("\n⚠️ Erro: Entrada numérica inválida!");
+        } catch (IllegalArgumentException e) {
+            System.out.println("\n⚠️ " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("\n⚠️ Erro inesperado: " + e.getMessage());
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
+            e.printStackTrace();
         }
-    }
-
-    private static Criptoativo getCriptoativoPorId(int id, Conta conta) {
-        int currentId = 1;
-        for (Carteira carteira : conta.getCarteiras().values()) {
-            if (currentId == id) {
-                return carteira.getCriptoativo();
-            }
-            currentId++;
-        }
-        return null;
     }
 
     private static void realizarTransferencia() {
+        System.out.println("\n═══ TRANSFERIR CRIPTOATIVO ═══");
+        
         try {
-            System.out.println("\n═══ TRANSFERÊNCIA DE CRIPTOATIVO ═══");
-
-            List<Conta> contas = usuarioAtual.getContas();
-            if (contas.size() < 2) {
-                throw new CorretoraException("Você precisa ter mais de uma conta para realizar transferências!");
+            // 1. Mostrar carteiras do usuário (para ele saber o que pode transferir)
+            List<Carteira> carteiras = carteiraService.buscarCarteirasPorConta(contaAtual);
+            
+            if (carteiras.isEmpty()) {
+                System.out.println("\nℹ️ Você não possui criptoativos para transferir.");
+                return;
             }
-
-            exibirCarteiras();
-            if (contaAtual.getCarteiras().isEmpty()) {
-                throw new CorretoraException("Você não possui criptoativos para transferir!");
+            
+            System.out.println("\nSeus criptoativos disponíveis para transferência:");
+            for (int i = 0; i < carteiras.size(); i++) {
+                Carteira carteira = carteiras.get(i);
+                System.out.println((i + 1) + ". " + 
+                                   carteira.getCriptoativo().nomeCriptoativo() + 
+                                   " (" + carteira.getCriptoativo().sigla() + ")" +
+                                   " - Saldo: " + carteira.getSaldo());
             }
-
-            System.out.println("\nContas disponíveis para transferência:");
-            for (Conta conta : contas) {
-                if (!conta.getNumeroConta().equals(contaAtual.getNumeroConta())) {
-                    System.out.println("→ Conta: " + conta.getNumeroConta());
-                }
+            
+            // 2. Solicitar qual criptoativo transferir
+            System.out.print("\nSelecione o número do criptoativo que deseja transferir: ");
+            int opcao = scanner.nextInt();
+            scanner.nextLine();
+            
+            if (opcao < 1 || opcao > carteiras.size()) {
+                System.out.println("\n⚠️ Opção inválida!");
+                return;
             }
-
-            System.out.print("\nDigite o número da conta destino: ");
-            String numeroContaDestino = scanner.nextLine().trim();
-
-            Conta contaDestino = usuarioAtual.getConta(numeroContaDestino);
-            if (contaDestino == null) {
-                throw new CorretoraException("Conta destino não encontrada!");
+            
+            Carteira carteiraSelecionada = carteiras.get(opcao - 1);
+            Criptoativo criptoativo = carteiraSelecionada.getCriptoativo();
+            
+            // 3. Solicitar a quantidade
+            System.out.println("Saldo disponível: " + carteiraSelecionada.getSaldo());
+            System.out.print("Quantidade a transferir: ");
+            double quantidadeDouble = scanner.nextDouble();
+            scanner.nextLine();
+            
+            BigDecimal quantidade = BigDecimal.valueOf(quantidadeDouble);
+            
+            // Verificar se tem saldo suficiente
+            if (quantidade.compareTo(carteiraSelecionada.getSaldo()) > 0) {
+                System.out.println("\n⚠️ Saldo insuficiente para transferência!");
+                return;
             }
-            if (contaDestino.getNumeroConta().equals(contaAtual.getNumeroConta())) {
-                throw new CorretoraException("Não é possível transferir para a mesma conta!");
+            
+            // 4. Solicitar a conta de destino
+            System.out.print("Número da conta de destino: ");
+            String numeroContaDestino = scanner.nextLine();
+            
+            Optional<Conta> contaDestinoOpt = contaService.buscarContaPorNumero(numeroContaDestino);
+            
+            if (contaDestinoOpt.isEmpty()) {
+                System.out.println("\n⚠️ Conta de destino não encontrada!");
+                return;
             }
-
-            System.out.print("Digite o ID do criptoativo: ");
-            String idInput = scanner.nextLine().trim();
-            if (idInput.isEmpty()) {
-                throw new CorretoraException("ID do criptoativo não pode estar vazio!");
+            
+            Conta contaDestino = contaDestinoOpt.get();
+            
+            // Verificar se não é a mesma conta
+            if (contaAtual.getId().equals(contaDestino.getId())) {
+                System.out.println("\n⚠️ Não é possível transferir para a mesma conta!");
+                return;
             }
-
-            int idCripto = Integer.parseInt(idInput);
-            Criptoativo cripto = corretora.getCriptoativoPorId(idCripto);
-            if (cripto == null) {
-                throw new CorretoraException("ID de criptoativo inválido!");
+            
+            // 5. Confirmar a transferência
+            System.out.println("\nResumo da transferência:");
+            System.out.println("Criptoativo: " + criptoativo.nomeCriptoativo() + " (" + criptoativo.sigla() + ")");
+            System.out.println("Quantidade: " + quantidade);
+            System.out.println("Conta de destino: " + contaDestino.getNumeroConta());
+            
+            System.out.print("\nConfirmar transferência? (S/N): ");
+            String confirmacao = scanner.nextLine();
+            
+            if (!confirmacao.equalsIgnoreCase("S")) {
+                System.out.println("\nⓘ Transferência cancelada pelo usuário.");
+                return;
             }
-
-            Carteira carteiraOrigem = contaAtual.getCarteira(cripto.getNomeCriptoativo());
-            if (carteiraOrigem == null || carteiraOrigem.getSaldo() <= 0) {
-                throw new CorretoraException("Você não possui " + cripto.getNomeCriptoativo() + " para transferir!");
-            }
-
-            System.out.print("Digite a quantidade a transferir: ");
-            String quantidadeInput = scanner.nextLine().trim();
-            if (quantidadeInput.isEmpty()) {
-                throw new CorretoraException("Quantidade não pode estar vazia!");
-            }
-
-            double quantidade;
-            try {
-                quantidade = Double.parseDouble(quantidadeInput);
-            } catch (NumberFormatException e) {
-                throw new CorretoraException("Quantidade inválida! Use apenas números e ponto decimal.");
-            }
-
-            if (quantidade <= 0) {
-                throw new CorretoraException("A quantidade deve ser maior que zero!");
-            }
-
-            if (quantidade > carteiraOrigem.getSaldo()) {
-                throw new CorretoraException("Saldo insuficiente! Você possui apenas " +
-                        df.format(carteiraOrigem.getSaldo()) + " " + cripto.getSigla());
-            }
-
-            contaDestino.adicionarCarteira(cripto);
-
-            contaAtual.transferir(contaDestino, cripto, quantidade, 50000.0);
-
+            
+            // 6. Realizar a transferência
+            transacaoService.transferirCriptoativo(contaAtual, contaDestino, criptoativo, quantidade);
+            
             System.out.println("\n✅ Transferência realizada com sucesso!");
-            System.out.println("De: Conta " + contaAtual.getNumeroConta());
-            System.out.println("Para: Conta " + contaDestino.getNumeroConta());
-            System.out.println("Quantidade: " + df.format(quantidade) + " " + cripto.getSigla());
-
+            
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
         } catch (CorretoraException e) {
             System.out.println("\n⚠️ " + e.getMessage());
-        } catch (NumberFormatException e) {
-            System.out.println("\n⚠️ Erro: Entrada numérica inválida!");
+        } catch (IllegalArgumentException e) {
+            System.out.println("\n⚠️ " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("\n⚠️ Erro inesperado: " + e.getMessage());
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     private static void exibirCarteiras() {
-        Map<String, Carteira> carteiras = contaAtual.getCarteiras();
-
-        if (carteiras.isEmpty()) {
-            System.out.println("\n═══ MINHAS CARTEIRAS ═══");
-            System.out.println("Nenhuma carteira encontrada.");
-            return;
-        }
-
-        System.out.println("╔══════════════════════════════════════════════════════════╗");
-        System.out.println("║                MINHAS CARTEIRAS                          ║");
-        System.out.println("╠════╦═══════════════════╦══════════╦══════════════════════╣");
-        System.out.println("║ ID ║    Criptoativo    ║  Sigla   ║     Saldo            ║");
-        System.out.println("╠════╬═══════════════════╬══════════╬══════════════════════╣");
-
-        int id = 1;
-        for (Carteira carteira : contaAtual.getCarteiras().values()) {
-            System.out.printf("║ %-2d ║ %-17s ║ %-8s ║ %14.2f       ║ \n",
-                    id++,
-                    carteira.getCriptoativo().getNomeCriptoativo(),
-                    carteira.getCriptoativo().getSigla(),
-                    carteira.getSaldo());
-        }
-        System.out.println("╚════╩═══════════════════╩══════════╩══════════════════════╝");
-    }
-
-    private static void menuSuporte() {
-        if (usuarioAtual == null) {
-            System.out.println("\n⚠️ Você precisa estar logado para acessar o suporte!");
-            return;
-        }
-
-        while (true) {
-            System.out.println("\n┌─────────── SUPORTE AO CLIENTE ──────────────────┐");
-            System.out.println("│ 1. Abrir novo ticket                              │");
-            System.out.println("│ 2. Ver meus tickets                               │");
-            System.out.println("│ 0. Voltar ao menu principal                       │");
-            System.out.println("└───────────────────────────────────────────────────┘");
-            System.out.print("Escolha uma opção: ");
-
-            try {
-                int opcao = scanner.nextInt();
-                scanner.nextLine();
-
-                switch (opcao) {
-                    case 1:
-                        abrirTicket();
-                        break;
-                    case 2:
-                        SuporteAoCliente.getInstancia().listarTicketsUsuario(usuarioAtual);
-                        break;
-                    case 0:
-                        return;
-                    default:
-                        System.out.println("\n⚠️ Opção inválida!");
-                }
-            } catch (Exception e) {
-                System.out.println("\n⚠️ Entrada inválida!");
-                scanner.nextLine();
-            }
-        }
-    }
-
-    private static void abrirTicket() {
-        System.out.println("\n═══ NOVO TICKET DE SUPORTE ═══");
-
-        System.out.print("Assunto: ");
-        String assunto = scanner.nextLine().trim();
-
-        System.out.println("Descrição (digite sua mensagem e pressione Enter):");
-        String descricao = scanner.nextLine().trim();
-
-        if (assunto.isEmpty() || descricao.isEmpty()) {
-            System.out.println("\n⚠️ Assunto e descrição não podem estar vazios!");
-            return;
-        }
-
-        SuporteAoCliente.getInstancia().criarTicket(usuarioAtual, assunto, descricao);
-    }
-
-    private static void menuBancoDeDados() {
-        while (true) {
-            System.out.println("\n┌─────────── MENU BANCO DE DADOS ──────────────────┐");
-            System.out.println("│ 1. Inserir novo usuário                           │");
-            System.out.println("│ 2. Buscar usuário por CPF                         │");
-            System.out.println("│ 3. Listar todos os usuários                       │");
-            System.out.println("│ 4. Atualizar usuário                              │");
-            System.out.println("│ 5. Excluir usuário                                │");
-            System.out.println("│ 0. Voltar ao menu principal                       │");
-            System.out.println("└─────────────────────────────────────────────────────┘");
-            System.out.print("Escolha uma opção: ");
-
-            try {
-                int opcao = scanner.nextInt();
-                scanner.nextLine(); // Limpar buffer
-
-                switch (opcao) {
-                    case 1:
-                        inserirUsuarioBD();
-                        break;
-                    case 2:
-                        buscarUsuarioPorCpfBD();
-                        break;
-                    case 3:
-                        listarTodosUsuariosBD();
-                        break;
-                    case 4:
-                        atualizarUsuarioBD();
-                        break;
-                    case 5:
-                        excluirUsuarioBD();
-                        break;
-                    case 0:
-                        return;
-                    default:
-                        System.out.println("\n⚠️ Opção inválida!");
-                }
-            } catch (Exception e) {
-                System.out.println("\n⚠️ Entrada inválida!");
-                scanner.nextLine(); // Limpar buffer
-            }
-        }
-    }
-
-    private static void inserirUsuarioBD() {
-        System.out.println("\n═══ INSERIR NOVO USUÁRIO ═══");
+        System.out.println("\n═══ MINHAS CARTEIRAS ═══");
         
-        System.out.print("Nome completo: ");
-        String nome = scanner.nextLine().trim();
-        
-        System.out.print("CPF: ");
-        String cpf = scanner.nextLine().trim();
-        
-        System.out.print("Email: ");
-        String email = scanner.nextLine().trim();
-        
-        System.out.print("Senha: ");
-        String senha = scanner.nextLine().trim();
-        
-        if (nome.isEmpty() || cpf.isEmpty() || email.isEmpty() || senha.isEmpty()) {
-            System.out.println("\n⚠️ Todos os campos são obrigatórios!");
-            return;
-        }
-        
-        Usuario usuario = new Usuario(nome, cpf, email);
-        usuario.salvarNoBanco(senha);
-        
-        System.out.println("\n✅ Usuário inserido com sucesso no banco de dados!");
-    }
-    
-    private static void buscarUsuarioPorCpfBD() {
-        System.out.println("\n═══ BUSCAR USUÁRIO POR CPF ═══");
-        
-        System.out.print("CPF: ");
-        String cpf = scanner.nextLine().trim();
-        
-        if (cpf.isEmpty()) {
-            System.out.println("\n⚠️ CPF é obrigatório!");
-            return;
-        }
-        
-        Usuario usuario = Usuario.buscarPorCpf(cpf);
-        
-        if (usuario != null) {
-            System.out.println("\n═══ USUÁRIO ENCONTRADO ═══");
-            System.out.println("Nome: " + usuario.getNome());
-            System.out.println("CPF: " + usuario.getCpf());
-            System.out.println("Email: " + usuario.getEmail());
-        } else {
-            System.out.println("\n⚠️ Usuário não encontrado!");
-        }
-    }
-    
-    private static void listarTodosUsuariosBD() {
-        System.out.println("\n═══ TODOS OS USUÁRIOS ═══");
-        
-        List<Usuario> usuarios = Usuario.listarTodos();
-        
-        if (usuarios.isEmpty()) {
-            System.out.println("\n⚠️ Nenhum usuário encontrado!");
-            return;
-        }
-        
-        for (Usuario usuario : usuarios) {
-            System.out.println("─────────────────────────");
-            System.out.println("Nome: " + usuario.getNome());
-            System.out.println("CPF: " + usuario.getCpf());
-            System.out.println("Email: " + usuario.getEmail());
-        }
-        System.out.println("─────────────────────────");
-        System.out.println("Total de usuários: " + usuarios.size());
-    }
-    
-    private static void atualizarUsuarioBD() {
-        System.out.println("\n═══ ATUALIZAR USUÁRIO ═══");
-        
-        System.out.print("CPF do usuário a ser atualizado: ");
-        String cpf = scanner.nextLine().trim();
-        
-        if (cpf.isEmpty()) {
-            System.out.println("\n⚠️ CPF é obrigatório!");
-            return;
-        }
-        
-        Usuario usuario = Usuario.buscarPorCpf(cpf);
-        
-        if (usuario == null) {
-            System.out.println("\n⚠️ Usuário não encontrado!");
-            return;
-        }
-        
-        System.out.println("\nDados atuais:");
-        System.out.println("Nome: " + usuario.getNome());
-        System.out.println("Email: " + usuario.getEmail());
-        
-        System.out.println("\nNovos dados (deixe em branco para manter o valor atual):");
-        
-        System.out.print("Novo nome: ");
-        String novoNome = scanner.nextLine().trim();
-        
-        System.out.print("Novo email: ");
-        String novoEmail = scanner.nextLine().trim();
-        
-        if (!novoNome.isEmpty()) {
-            usuario.setNome(novoNome);
-        }
-        
-        if (!novoEmail.isEmpty()) {
-            usuario.setEmail(novoEmail);
-        }
-        
-        boolean resultado = usuario.atualizar();
-        
-        if (resultado) {
-            System.out.println("\n✅ Usuário atualizado com sucesso!");
-        } else {
-            System.out.println("\n⚠️ Erro ao atualizar usuário!");
-        }
-    }
-    
-    private static void excluirUsuarioBD() {
-        System.out.println("\n═══ EXCLUIR USUÁRIO ═══");
-        
-        System.out.print("CPF do usuário a ser excluído: ");
-        String cpf = scanner.nextLine().trim();
-        
-        if (cpf.isEmpty()) {
-            System.out.println("\n⚠️ CPF é obrigatório!");
-            return;
-        }
-        
-        Usuario usuario = Usuario.buscarPorCpf(cpf);
-        
-        if (usuario == null) {
-            System.out.println("\n⚠️ Usuário não encontrado!");
-            return;
-        }
-        
-        System.out.println("\nDados do usuário a ser excluído:");
-        System.out.println("Nome: " + usuario.getNome());
-        System.out.println("CPF: " + usuario.getCpf());
-        System.out.println("Email: " + usuario.getEmail());
-        
-        System.out.print("\nConfirma a exclusão? (S/N): ");
-        String confirmacao = scanner.nextLine().trim();
-        
-        if (confirmacao.equalsIgnoreCase("S")) {
-            boolean resultado = usuario.excluir();
+        try {
+            List<Carteira> carteiras = carteiraService.buscarCarteirasPorConta(contaAtual);
             
-            if (resultado) {
-                System.out.println("\n✅ Usuário excluído com sucesso!");
-            } else {
-                System.out.println("\n⚠️ Erro ao excluir usuário!");
+            if (carteiras.isEmpty()) {
+                System.out.println("\nℹ️ Você não possui criptoativos em sua carteira.");
+                return;
             }
-        } else {
-            System.out.println("\n⚠️ Exclusão cancelada!");
+            
+            for (Carteira carteira : carteiras) {
+                System.out.println("Criptoativo: " + carteira.getCriptoativo().nomeCriptoativo() + 
+                                  " (" + carteira.getCriptoativo().sigla() + ")");
+                System.out.println("Saldo: " + carteira.getSaldo());
+                System.out.println("─────────────────────────");
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
         }
     }
-
-    // Métodos para persistência em arquivo (a serem implementados)
-    private static void salvarUsuariosEmArquivo() {
-        try (FileWriter fw = new FileWriter("MissaoTioPatinhas/src/usuarios.txt");
-             BufferedWriter bw = new BufferedWriter(fw)) {
-
-            for (Usuario usuario : listaUsuarios) {
-                bw.write(String.format("%s;%s;%s\n",
-                        usuario.getNome(),
-                        usuario.getEmail(),
-                        usuario.getCpf()
-                ));
+    
+    private static void exibirHistoricoTransacoes() {
+        System.out.println("\n═══ HISTÓRICO DE TRANSAÇÕES ═══");
+        
+        try {
+            List<Transacao> transacoes = transacaoService.listarTransacoesPorConta(contaAtual);
+            
+            if (transacoes.isEmpty()) {
+                System.out.println("\nℹ️ Não há transações registradas para esta conta.");
+                return;
             }
-        } catch (IOException e) {
-            System.out.println("Erro ao salvar usuários: " + e.getMessage());
-        }
-    }
-
-    private static void carregarUsuariosDoArquivo() {
-        try (FileReader fr = new FileReader("MissaoTioPatinhas/src/usuarios.txt");
-             BufferedReader br = new BufferedReader(fr)) {
-
-            String linha;
-            while ((linha = br.readLine()) != null) {
-                String[] dados = linha.split(";");
-                if (dados.length == 3) {
-                    Usuario usuario = new Usuario(dados[0], dados[1], dados[2]);
-                    listaUsuarios.add(usuario);
-                    mapaUsuarios.put(dados[1], usuario);
-                    credenciais.put(dados[1], dados[2]);
-                }
+            
+            for (Transacao transacao : transacoes) {
+                System.out.println("ID: " + transacao.getIdTransacao());
+                System.out.println("Tipo: " + transacao.getClass().getSimpleName());
+                System.out.println("Criptoativo: " + transacao.getCriptoativo().nomeCriptoativo() + 
+                                  " (" + transacao.getCriptoativo().sigla() + ")");
+                System.out.println("Quantidade: " + transacao.getQuantidade());
+                System.out.println("Preço no momento: " + df.format(transacao.getPrecoNoMomento()));
+                System.out.println("Data/Hora: " + transacao.getDataHora());
+                System.out.println("─────────────────────────");
             }
-        } catch (IOException e) {
-            System.out.println("Erro ao carregar usuários: " + e.getMessage());
+            
+        } catch (SQLException e) {
+            System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\n❌ Erro inesperado: " + e.getMessage());
         }
-    }
-
-    private static void salvarLogAutenticacao() {
-        try (FileWriter fw = new FileWriter("MissaoTioPatinhas/src/log_autenticacao.txt", true);
-             BufferedWriter bw = new BufferedWriter(fw)) {
-
-            for (String log : logAutenticacao) {
-                bw.write(log + "\n");
-            }
-        } catch (IOException e) {
-            System.out.println("Erro ao salvar log: " + e.getMessage());
-        }
-    }
-
-    private static void carregarLogAutenticacao() {
-        try (FileReader fr = new FileReader("MissaoTioPatinhas/src/log_autenticacao.txt");
-             BufferedReader br = new BufferedReader(fr)) {
-
-            String linha;
-            while ((linha = br.readLine()) != null) {
-                logAutenticacao.add(linha);
-            }
-        } catch (IOException e) {
-            System.out.println("Erro ao carregar log: " + e.getMessage());
-        }
-    }
-
-    // Método auxiliar para garantir que os dados sejam salvos ao encerrar
-    private static void salvarDados() {
-        salvarUsuariosEmArquivo();
-        salvarLogAutenticacao();
-    }
-
-    // Método auxiliar para carregar os dados ao iniciar
-    private static void carregarDados() {
-        carregarUsuariosDoArquivo();
-        carregarLogAutenticacao();
     }
 }
 

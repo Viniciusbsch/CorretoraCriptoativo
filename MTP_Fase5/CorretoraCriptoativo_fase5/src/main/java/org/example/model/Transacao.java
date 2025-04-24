@@ -1,26 +1,49 @@
-package org.example.classes.MissaoTioPatinhas.src;
+package org.example.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
+/**
+ * Classe abstrata que representa uma transação financeira.
+ */
 public abstract class Transacao {
-    private String idTransacao; 
+    private Long idTransacao;
     private Conta conta;
     private Criptoativo criptoativo;
-    private double quantidade;
-    private double precoNoMomento;
+    private BigDecimal quantidade;
+    private BigDecimal precoNoMomento;
     private LocalDateTime dataHora;
 
-    public Transacao(Conta conta, Criptoativo criptoativo, double quantidade, double precoNoMomento) {
-        this.idTransacao = UUID.randomUUID().toString();
+    /**
+     * Construtor para carregar do banco de dados (com ID).
+     */
+    public Transacao(Long idTransacao, Conta conta, Criptoativo criptoativo, BigDecimal quantidade, BigDecimal precoNoMomento, LocalDateTime dataHora) {
+        if (conta == null || criptoativo == null || quantidade == null || precoNoMomento == null || dataHora == null) {
+            throw new IllegalArgumentException("Argumentos da transação não podem ser nulos.");
+        }
+        if (quantidade.compareTo(BigDecimal.ZERO) <= 0) {
+             throw new IllegalArgumentException("Quantidade da transação deve ser positiva.");
+        }
+         if (precoNoMomento.compareTo(BigDecimal.ZERO) < 0) {
+             throw new IllegalArgumentException("Preço no momento não pode ser negativo.");
+        }
+
+        this.idTransacao = idTransacao;
         this.conta = conta;
         this.criptoativo = criptoativo;
         this.quantidade = quantidade;
         this.precoNoMomento = precoNoMomento;
-        this.dataHora = LocalDateTime.now();
+        this.dataHora = dataHora;
     }
 
-    public String getIdTransacao() {
+    /**
+     * Construtor para criar uma nova transação (sem ID ainda, data/hora gerada).
+     */
+    public Transacao(Conta conta, Criptoativo criptoativo, BigDecimal quantidade, BigDecimal precoNoMomento) {
+        this(null, conta, criptoativo, quantidade, precoNoMomento, LocalDateTime.now());
+    }
+
+    public Long getIdTransacao() {
         return idTransacao;
     }
 
@@ -32,11 +55,11 @@ public abstract class Transacao {
         return criptoativo;
     }
 
-    public double getQuantidade() {
+    public BigDecimal getQuantidade() {
         return quantidade;
     }
 
-    public double getPrecoNoMomento() {
+    public BigDecimal getPrecoNoMomento() {
         return precoNoMomento;
     }
 
@@ -44,15 +67,16 @@ public abstract class Transacao {
         return dataHora;
     }
 
-    // Método abstrato que será implementado nas subclasses
-    public abstract void executar();
-    
+    public void setIdTransacao(Long idTransacao) {
+        this.idTransacao = idTransacao;
+    }
+
     public void exibirInformacoes() {
-        System.out.println("ID da Transação: " + idTransacao);
-        System.out.println("Conta: " + conta.getNumeroConta());
-        System.out.println("Criptoativo: " + criptoativo.getNomeCriptoativo());
-        System.out.println("Quantidade: " + quantidade);
-        System.out.println("Preço no Momento: " + precoNoMomento);
-        System.out.println("Data e Hora: " + dataHora);
+        System.out.println("ID da Transação: " + (idTransacao != null ? idTransacao : "N/A"));
+        System.out.println("Conta: " + (conta != null ? conta.getNumeroConta() : "N/A"));
+        System.out.println("Criptoativo: " + (criptoativo != null ? criptoativo.nomeCriptoativo() : "N/A"));
+        System.out.println("Quantidade: " + (quantidade != null ? quantidade.toPlainString() : "N/A"));
+        System.out.println("Preço no Momento: " + (precoNoMomento != null ? precoNoMomento.toPlainString() : "N/A"));
+        System.out.println("Data e Hora: " + (dataHora != null ? dataHora : "N/A"));
     }
 }

@@ -1,17 +1,26 @@
-package org.example.classes.MissaoTioPatinhas.src;
+package org.example.model;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.math.BigDecimal;
 
 public class Carteira {
+    private Long id;
     private Conta conta;
     private Criptoativo criptoativo;
-    private double saldo;
+    private BigDecimal saldo;
 
-    public Carteira(Conta conta, Criptoativo criptoativo) {
+    public Carteira(Long id, Conta conta, Criptoativo criptoativo, BigDecimal saldo) {
+        this.id = id;
         this.conta = conta;
         this.criptoativo = criptoativo;
-        this.saldo = 0.0;
+        this.saldo = saldo != null ? saldo : BigDecimal.ZERO;
+    }
+
+    public Carteira(Conta conta, Criptoativo criptoativo) {
+        this(null, conta, criptoativo, BigDecimal.ZERO);
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public Conta getConta() {
@@ -22,8 +31,12 @@ public class Carteira {
         return criptoativo;
     }
 
-    public double getSaldo() {
+    public BigDecimal getSaldo() {
         return saldo;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public void setConta(Conta conta) {
@@ -34,23 +47,31 @@ public class Carteira {
         this.criptoativo = criptoativo;
     }
 
-    public void setSaldo(double saldo) {
-        this.saldo = saldo;
+    public void setSaldo(BigDecimal saldo) {
+        this.saldo = saldo != null ? saldo : BigDecimal.ZERO;
     }
 
-    public void adicionarSaldo(double valor) {
-        this.saldo += valor;
+    public void adicionarSaldo(BigDecimal valor) {
+        if (valor != null && valor.compareTo(BigDecimal.ZERO) > 0) {
+            this.saldo = this.saldo.add(valor);
+        }
     }
 
-    public void adicionarSaldo(String valor) {
-        this.saldo += Double.parseDouble(valor);
+    public boolean subtrairSaldo(BigDecimal valor) {
+        if (valor != null && valor.compareTo(BigDecimal.ZERO) > 0 && this.saldo.compareTo(valor) >= 0) {
+            this.saldo = this.saldo.subtract(valor);
+            return true;
+        }
+        return false;
     }
 
-    public void subtrairSaldo(double valor) {
-        this.saldo -= valor;
-    }
-
-    public void subtrairSaldo(String valor) {
-        this.saldo -= Double.parseDouble(valor);
+    @Override
+    public String toString() {
+        return "Carteira{" +
+               "id=" + id +
+               ", conta=" + (conta != null ? conta.getNumeroConta() : "null") +
+               ", criptoativo=" + (criptoativo != null ? criptoativo.sigla() : "null") +
+               ", saldo=" + saldo +
+               '}';
     }
 } 

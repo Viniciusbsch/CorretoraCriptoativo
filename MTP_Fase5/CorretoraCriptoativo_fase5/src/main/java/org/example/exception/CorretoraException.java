@@ -1,4 +1,4 @@
-package org.example.classes.MissaoTioPatinhas.src;
+package org.example.exception;
 
 public class CorretoraException extends Exception {
     public CorretoraException(String message) {
