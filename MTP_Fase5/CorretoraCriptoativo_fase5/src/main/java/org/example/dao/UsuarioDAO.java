@@ -279,18 +279,66 @@ public class UsuarioDAO implements AutoCloseable {
     }
     
     /**
+     * Busca o ID do autenticador associado a um usuário pelo ID do usuário (num_cpf).
+     * @param usuarioId O ID (num_cpf) do usuário.
+     * @return Um Optional contendo o ID do Autenticador se encontrado.
+     * @throws SQLException Se ocorrer erro no banco.
+     */
+    public Optional<Long> buscarIdAutenticadorPorUsuarioId(Long usuarioId) throws SQLException {
+        String sql = "SELECT idt_autenticador FROM t_mtp_usuario WHERE num_cpf = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setLong(1, usuarioId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(rs.getLong("idt_autenticador"));
+                }
+            }
+        }
+        return Optional.empty(); // Usuário ou autenticador não encontrado
+    }
+
+    /**
+     * Busca um usuário pelo ID do seu autenticador associado.
+     * @param idAutenticador O ID do autenticador.
+     * @return Um Optional contendo o usuário se encontrado.
+     * @throws SQLException Se ocorrer erro no banco.
+     */
+    public Optional<Usuario> buscarPorIdAutenticador(Long idAutenticador) throws SQLException {
+        String sql = "SELECT num_cpf, des_nome, des_email " +
+                     "FROM t_mtp_usuario WHERE idt_autenticador = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setLong(1, idAutenticador);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Usuario usuario = mapearUsuario(rs);
+                    return Optional.of(usuario);
+                }
+            }
+        }
+        return Optional.empty(); // Usuário não encontrado para este autenticador
+    }
+    
+    /**
      * Utilitário para mapear ResultSet para objeto Usuario.
+     * Assume que o ResultSet contém num_cpf, des_nome, des_email.
      * @param rs O ResultSet posicionado no registro a ser mapeado.
      * @return O objeto Usuario com dados do ResultSet.
      * @throws SQLException Se ocorrer erro ao acessar os dados do ResultSet.
      */
     private Usuario mapearUsuario(ResultSet rs) throws SQLException {
-        Long idUsuario = rs.getLong("num_cpf");
+        long id = rs.getLong("num_cpf");
         String nome = rs.getString("des_nome");
-        String cpf = String.valueOf(idUsuario);
         String email = rs.getString("des_email");
-        
-        return new Usuario(idUsuario, nome, cpf, email);
+
+        // Formatar o ID (num_cpf long) de volta para uma String CPF (11 dígitos)
+        String cpfFormatado = String.format("%011d", id);
+        // Opcional: adicionar formatação com pontos e traço se necessário no modelo
+        // cpfFormatado = cpfFormatado.replaceAll("(\\d{3})(\\d{3})(\\d{3})(\\d{2})", "$1.$2.$3-$4");
+
+        // Usar o construtor que aceita id, nome, cpf (String) e email
+        Usuario usuario = new Usuario(id, nome, cpfFormatado, email);
+
+        return usuario;
     }
     
     /**

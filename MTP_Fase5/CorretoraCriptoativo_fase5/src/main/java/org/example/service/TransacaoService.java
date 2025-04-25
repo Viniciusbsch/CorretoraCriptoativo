@@ -104,10 +104,10 @@ public class TransacaoService {
             throws SQLException, IllegalArgumentException, CorretoraException {
         
         // Validações básicas
-        if (contaOrigem == null || contaOrigem.getId() == null) {
+        if (contaOrigem == null) {
             throw new IllegalArgumentException("Conta de origem inválida");
         }
-        if (contaDestino == null || contaDestino.getId() == null) {
+        if (contaDestino == null) {
             throw new IllegalArgumentException("Conta de destino inválida");
         }
         if (criptoativo == null || criptoativo.id() == null) {
@@ -116,7 +116,7 @@ public class TransacaoService {
         if (quantidade == null || quantidade.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Quantidade deve ser maior que zero");
         }
-        if (contaOrigem.getId().equals(contaDestino.getId())) {
+        if (contaOrigem.getNumeroConta() == contaDestino.getNumeroConta()) {
             throw new IllegalArgumentException("Não é possível transferir para a mesma conta");
         }
         
@@ -151,12 +151,12 @@ public class TransacaoService {
      * @throws IllegalArgumentException Se a conta for inválida.
      */
     public List<Transacao> listarTransacoesPorConta(Conta conta) throws SQLException {
-        if (conta == null || conta.getId() == null) {
+        if (conta == null) {
             throw new IllegalArgumentException("Conta inválida para listar transações");
         }
         
         try {
-            return transacaoDAO.buscarPorContaId(conta.getId());
+            return transacaoDAO.buscarPorNumeroConta(conta.getNumeroConta());
         } catch (SQLException e) {
             throw new SQLException("Erro ao listar transações: " + e.getMessage(), e);
         }
@@ -166,7 +166,7 @@ public class TransacaoService {
      * Valida os parâmetros básicos de uma transação.
      */
     private void validarParametrosTransacao(Conta conta, Criptoativo criptoativo, BigDecimal quantidade, BigDecimal precoMomento) {
-        if (conta == null || conta.getId() == null) {
+        if (conta == null) {
             throw new IllegalArgumentException("Conta inválida");
         }
         if (criptoativo == null || criptoativo.id() == null) {

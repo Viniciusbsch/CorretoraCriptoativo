@@ -27,7 +27,7 @@ public class ContaService {
 
     /**
      * Cria uma nova conta para o usuário especificado.
-     * 
+     * Gera um número de conta (int) único.
      * @param usuario O usuário titular da conta.
      * @return A conta criada com ID gerado.
      * @throws SQLException Se ocorrer um erro no banco de dados.
@@ -38,13 +38,8 @@ public class ContaService {
             throw new IllegalArgumentException("Usuário inválido para criar conta");
         }
         
-        // Gerar número de conta único com formato: CC-XXXXXX (onde X são dígitos)
-        String numeroConta = gerarNumeroConta();
-        
-        // Verificar se o número de conta já existe
-        while (contaDAO.buscarPorNumeroConta(numeroConta).isPresent()) {
-            numeroConta = gerarNumeroConta();
-        }
+        // Gerar número de conta (int) único
+        int numeroConta = gerarNumeroContaUnico();
         
         // Criar e salvar a nova conta
         Conta novaConta = new Conta(numeroConta, usuario);
@@ -70,46 +65,63 @@ public class ContaService {
     }
 
     /**
-     * Busca uma conta pelo seu número.
+     * Busca uma conta pelo seu número (int).
      * 
-     * @param numeroConta O número da conta a ser buscada.
+     * @param numeroConta O número da conta (int) a ser buscada.
      * @return Um Optional contendo a conta se encontrada.
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
-    public Optional<Conta> buscarContaPorNumero(String numeroConta) throws SQLException {
-        if (numeroConta == null || numeroConta.trim().isEmpty()) {
-            return Optional.empty();
-        }
+    public Optional<Conta> buscarContaPorNumero(int numeroConta) throws SQLException {
+        // Validação de número positivo pode ser adicionada se necessário
+        // if (numeroConta <= 0) { return Optional.empty(); }
         
         return contaDAO.buscarPorNumeroConta(numeroConta);
     }
 
     /**
      * Busca uma conta pelo seu ID.
+     * REMOVIDO: O ID da conta agora é o número da conta (int).
+     * Use buscarContaPorNumero(int numeroConta) em vez disso.
      * 
      * @param idConta O ID da conta a ser buscada.
      * @return Um Optional contendo a conta se encontrada.
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
+    /*
     public Optional<Conta> buscarContaPorId(Long idConta) throws SQLException {
         if (idConta == null) {
             return Optional.empty();
         }
         
-        return contaDAO.buscarPorId(idConta);
+        // Erro de compilação aqui: buscarPorId não existe mais em ContaDAO
+        // return contaDAO.buscarPorId(idConta);
+        throw new UnsupportedOperationException("Método buscarContaPorId(Long) foi removido. Use buscarContaPorNumero(int).");
     }
+    */
 
     /**
-     * Gera um número de conta aleatório no formato CC-XXXXXX.
-     * 
-     * @return O número de conta gerado.
+     * Gera um número de conta (int) único de até 5 dígitos.
+     * Verifica no banco se o número já existe.
+     * @return O número de conta (int) gerado.
+     * @throws SQLException Se ocorrer erro ao verificar existência no banco.
      */
-    private String gerarNumeroConta() {
+    private int gerarNumeroContaUnico() throws SQLException {
         Random random = new Random();
-        int numero = 100000 + random.nextInt(900000); // Gera número entre 100000 e 999999
-        return "CC-" + numero;
+        int numeroConta;
+        int maxTentativas = 100; // Evitar loop infinito
+        int tentativas = 0;
+        
+        do {
+            numeroConta = random.nextInt(90000) + 10000; // Gera número entre 10000 e 99999
+            tentativas++;
+            if (tentativas > maxTentativas) {
+                throw new SQLException("Não foi possível gerar um número de conta único após " + maxTentativas + " tentativas.");
+            }
+        } while (contaDAO.buscarPorNumeroConta(numeroConta).isPresent());
+        
+        return numeroConta;
     }
 
-    // Adicionar outros métodos necessários (ex: buscarContaPorNumero, getSaldo, etc.)
+    // Adicionar outros métodos necessários (ex: getSaldo, etc.)
 
 } 

@@ -32,7 +32,7 @@ public class CriptoativoDAO implements AutoCloseable {
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
     public Criptoativo salvar(Criptoativo criptoativo) throws SQLException {
-        String sql = "INSERT INTO t_mtp_criptoativo (nom_criptoativo, des_sigla) VALUES (?, ?)";
+        String sql = "INSERT INTO t_mtp_criptoativo (nom_criptoativo, sig_criptoativo) VALUES (?, ?)";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql, new String[]{"idt_criptoativo"})) {
             stmt.setString(1, criptoativo.nomeCriptoativo());
@@ -58,7 +58,7 @@ public class CriptoativoDAO implements AutoCloseable {
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
     public Optional<Criptoativo> buscarPorId(Long id) throws SQLException {
-        String sql = "SELECT idt_criptoativo, nom_criptoativo, des_sigla " +
+        String sql = "SELECT idt_criptoativo, nom_criptoativo, sig_criptoativo " +
                      "FROM t_mtp_criptoativo WHERE idt_criptoativo = ?";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -82,8 +82,8 @@ public class CriptoativoDAO implements AutoCloseable {
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
     public Optional<Criptoativo> buscarPorSigla(String sigla) throws SQLException {
-        String sql = "SELECT idt_criptoativo, nom_criptoativo, des_sigla " +
-                     "FROM t_mtp_criptoativo WHERE des_sigla = ?";
+        String sql = "SELECT idt_criptoativo, nom_criptoativo, sig_criptoativo " +
+                     "FROM t_mtp_criptoativo WHERE sig_criptoativo = ?";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, sigla);
@@ -107,7 +107,7 @@ public class CriptoativoDAO implements AutoCloseable {
     public List<Criptoativo> buscarTodos() throws SQLException {
         List<Criptoativo> criptoativos = new ArrayList<>();
         
-        String sql = "SELECT idt_criptoativo, nom_criptoativo, des_sigla FROM t_mtp_criptoativo";
+        String sql = "SELECT idt_criptoativo, nom_criptoativo, sig_criptoativo FROM t_mtp_criptoativo";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -133,7 +133,7 @@ public class CriptoativoDAO implements AutoCloseable {
             throw new SQLException("ID do criptoativo não pode ser nulo para atualização.");
         }
         
-        String sql = "UPDATE t_mtp_criptoativo SET nom_criptoativo = ?, des_sigla = ? " +
+        String sql = "UPDATE t_mtp_criptoativo SET nom_criptoativo = ?, sig_criptoativo = ? " +
                     "WHERE idt_criptoativo = ?";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -176,7 +176,7 @@ public class CriptoativoDAO implements AutoCloseable {
     private Criptoativo mapearCriptoativo(ResultSet rs) throws SQLException {
         Long id = rs.getLong("idt_criptoativo");
         String nome = rs.getString("nom_criptoativo");
-        String sigla = rs.getString("des_sigla");
+        String sigla = rs.getString("sig_criptoativo");
         
         return new Criptoativo(id, nome, sigla);
     }

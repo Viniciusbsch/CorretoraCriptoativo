@@ -9,6 +9,7 @@ public class Usuario {
     private String cpf;
     private String email;
     private List<Conta> contas;
+    private List<Carteira> carteiras;
 
     public Usuario(Long id, String nome, String cpf, String email) {
         this.id = id;
@@ -16,6 +17,7 @@ public class Usuario {
         this.cpf = cpf;
         this.email = email;
         this.contas = new ArrayList<>();
+        this.carteiras = new ArrayList<>();
     }
 
     public Usuario(String nome, String cpf, String email) {
@@ -28,9 +30,9 @@ public class Usuario {
         }
     }
 
-    public Conta getConta(String numeroConta) {
+    public Conta getConta(int numeroConta) {
         for (Conta conta : contas) {
-            if (conta.getNumeroConta().equals(numeroConta)) {
+            if (conta.getNumeroConta() == numeroConta) {
                 return conta;
             }
         }
@@ -87,6 +89,19 @@ public class Usuario {
 
     public void setContas(List<Conta> contas) {
         this.contas = new ArrayList<>(contas);
+    }
+
+    public Carteira getCarteira(Long idCriptoativo) {
+        for (Carteira carteira : carteiras) {
+            if (carteira.getCriptoativo() != null && idCriptoativo.equals(carteira.getCriptoativo().id())) {
+                return carteira;
+            }
+        }
+        return null;
+    }
+
+    public void adicionarOuAtualizarCarteira(Carteira carteira) {
+        // ... restante do código ...
     }
 
     @Override

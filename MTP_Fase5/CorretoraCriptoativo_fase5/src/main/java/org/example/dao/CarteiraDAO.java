@@ -40,8 +40,8 @@ public class CarteiraDAO implements AutoCloseable {
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
     public void salvar(Carteira carteira) throws SQLException {
-        if (carteira.getConta() == null || carteira.getConta().getId() == null) {
-            throw new SQLException("Conta da carteira não pode ser nula ou não ter ID definido.");
+        if (carteira.getConta() == null) {
+            throw new SQLException("Conta da carteira não pode ser nula.");
         }
         if (carteira.getCriptoativo() == null || carteira.getCriptoativo().id() == null) {
             throw new SQLException("Criptoativo da carteira não pode ser nulo ou não ter ID definido.");
@@ -50,7 +50,7 @@ public class CarteiraDAO implements AutoCloseable {
         String sql = "INSERT INTO t_mtp_carteira (idt_conta, idt_criptoativo, val_saldo) VALUES (?, ?, ?)";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql, new String[]{"idt_carteira"})) {
-            stmt.setLong(1, carteira.getConta().getId());
+            stmt.setInt(1, carteira.getConta().getNumeroConta());
             stmt.setLong(2, carteira.getCriptoativo().id());
             stmt.setBigDecimal(3, carteira.getSaldo());
             stmt.executeUpdate();
@@ -100,14 +100,14 @@ public class CarteiraDAO implements AutoCloseable {
      * @return Uma lista contendo as carteiras da conta.
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
-    public List<Carteira> buscarPorContaId(Long contaId) throws SQLException {
+    public List<Carteira> buscarPorNumeroConta(int numeroConta) throws SQLException {
         List<Carteira> carteiras = new ArrayList<>();
         
         String sql = "SELECT crt.idt_carteira, crt.idt_conta, crt.idt_criptoativo, crt.val_saldo " +
                      "FROM t_mtp_carteira crt WHERE crt.idt_conta = ?";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setLong(1, contaId);
+            stmt.setInt(1, numeroConta);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -127,12 +127,12 @@ public class CarteiraDAO implements AutoCloseable {
      * @return Um Optional contendo a carteira se encontrada, ou vazio caso contrário.
      * @throws SQLException Se ocorrer um erro no banco de dados.
      */
-    public Optional<Carteira> buscarPorContaECriptoativo(Long contaId, Long criptoativoId) throws SQLException {
+    public Optional<Carteira> buscarPorNumeroContaECriptoativo(int numeroConta, Long criptoativoId) throws SQLException {
         String sql = "SELECT crt.idt_carteira, crt.idt_conta, crt.idt_criptoativo, crt.val_saldo " +
                      "FROM t_mtp_carteira crt WHERE crt.idt_conta = ? AND crt.idt_criptoativo = ?";
         
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setLong(1, contaId);
+            stmt.setInt(1, numeroConta);
             stmt.setLong(2, criptoativoId);
             
             try (ResultSet rs = stmt.executeQuery()) {
@@ -209,13 +209,13 @@ public class CarteiraDAO implements AutoCloseable {
      */
     private Carteira mapearCarteira(ResultSet rs) throws SQLException {
         Long idCarteira = rs.getLong("idt_carteira");
-        Long idConta = rs.getLong("idt_conta");
+        int numeroConta = rs.getInt("idt_conta");
         Long idCriptoativo = rs.getLong("idt_criptoativo");
         BigDecimal saldo = rs.getBigDecimal("val_saldo");
         
-        // Buscar Conta completa
-        Conta conta = contaDAO.buscarPorId(idConta)
-            .orElseThrow(() -> new SQLException("Conta da carteira não encontrada: ID " + idConta));
+        // Buscar Conta completa pelo número
+        Conta conta = contaDAO.buscarPorNumeroConta(numeroConta)
+            .orElseThrow(() -> new SQLException("Conta da carteira não encontrada: Número " + numeroConta));
         
         // Buscar Criptoativo completo
         Criptoativo criptoativo = criptoativoDAO.buscarPorId(idCriptoativo)

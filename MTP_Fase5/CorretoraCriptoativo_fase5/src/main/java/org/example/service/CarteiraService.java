@@ -35,11 +35,11 @@ public class CarteiraService {
      * @throws IllegalArgumentException Se a conta for nula ou sem ID.
      */
     public List<Carteira> buscarCarteirasPorConta(Conta conta) throws SQLException {
-        if (conta == null || conta.getId() == null) {
+        if (conta == null) {
             throw new IllegalArgumentException("Conta inválida para buscar carteiras");
         }
         
-        return carteiraDAO.buscarPorContaId(conta.getId());
+        return carteiraDAO.buscarPorNumeroConta(conta.getNumeroConta());
     }
 
     /**
@@ -53,14 +53,14 @@ public class CarteiraService {
      */
     public Optional<Carteira> buscarCarteiraPorContaECriptoativo(Conta conta, Criptoativo criptoativo) 
             throws SQLException {
-        if (conta == null || conta.getId() == null) {
+        if (conta == null) {
             throw new IllegalArgumentException("Conta inválida para buscar carteira");
         }
         if (criptoativo == null || criptoativo.id() == null) {
             throw new IllegalArgumentException("Criptoativo inválido para buscar carteira");
         }
         
-        return carteiraDAO.buscarPorContaECriptoativo(conta.getId(), criptoativo.id());
+        return carteiraDAO.buscarPorNumeroContaECriptoativo(conta.getNumeroConta(), criptoativo.id());
     }
 
     /**
@@ -75,7 +75,7 @@ public class CarteiraService {
      */
     public Carteira atualizarSaldoCarteira(Conta conta, Criptoativo criptoativo, BigDecimal novoSaldo) 
             throws SQLException {
-        if (conta == null || conta.getId() == null) {
+        if (conta == null) {
             throw new IllegalArgumentException("Conta inválida para atualizar carteira");
         }
         if (criptoativo == null || criptoativo.id() == null) {
@@ -86,8 +86,8 @@ public class CarteiraService {
         }
         
         // Tentar buscar a carteira existente
-        Optional<Carteira> carteiraOpt = carteiraDAO.buscarPorContaECriptoativo(
-                conta.getId(), criptoativo.id());
+        Optional<Carteira> carteiraOpt = carteiraDAO.buscarPorNumeroContaECriptoativo(
+                conta.getNumeroConta(), criptoativo.id());
         
         Carteira carteira;
         if (carteiraOpt.isPresent()) {

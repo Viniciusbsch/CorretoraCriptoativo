@@ -361,16 +361,15 @@ public class Main {
         System.out.println("\n═══ MINHAS CONTAS ═══");
         
         try {
-            List<Conta> contas = contaService.buscarContasPorUsuario(usuarioAtual);
-            
-            if (contas.isEmpty()) {
-                System.out.println("\nℹ️ Você não possui nenhuma conta. Crie uma nova conta primeiro.");
+            List<Conta> contasUsuario = contaService.buscarContasPorUsuario(usuarioAtual);
+            if (contasUsuario.isEmpty()) {
+                System.out.println("Você ainda não possui contas.");
                 return;
             }
             
-            for (Conta conta : contas) {
-                System.out.println("Número da conta: " + conta.getNumeroConta());
-                System.out.println("ID: " + conta.getId());
+            System.out.println("Suas contas:");
+            for (Conta conta : contasUsuario) {
+                System.out.println("Número da Conta: " + conta.getNumeroConta());
                 System.out.println("─────────────────────────");
             }
         } catch (SQLException e) {
@@ -447,8 +446,6 @@ public class Main {
             
         } catch (SQLException e) {
             System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
-        } catch (CorretoraException e) {
-            System.out.println("\n⚠️ " + e.getMessage());
         } catch (IllegalArgumentException e) {
             System.out.println("\n⚠️ " + e.getMessage());
         } catch (Exception e) {
@@ -536,8 +533,6 @@ public class Main {
             
         } catch (SQLException e) {
             System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
-        } catch (CorretoraException e) {
-            System.out.println("\n⚠️ " + e.getMessage());
         } catch (IllegalArgumentException e) {
             System.out.println("\n⚠️ " + e.getMessage());
         } catch (Exception e) {
@@ -596,46 +591,58 @@ public class Main {
             
             // 4. Solicitar a conta de destino
             System.out.print("Número da conta de destino: ");
-            String numeroContaDestino = scanner.nextLine();
-            
-            Optional<Conta> contaDestinoOpt = contaService.buscarContaPorNumero(numeroContaDestino);
-            
-            if (contaDestinoOpt.isEmpty()) {
-                System.out.println("\n⚠️ Conta de destino não encontrada!");
-                return;
+            String numeroContaDestinoStr = scanner.nextLine();
+
+            try {
+                int numeroContaDestino = Integer.parseInt(numeroContaDestinoStr);
+                
+                // Chama buscarContaPorNumero passando o int
+                Optional<Conta> contaDestinoOpt = contaService.buscarContaPorNumero(numeroContaDestino); 
+                
+                if (contaDestinoOpt.isEmpty()) {
+                    System.out.println("\n⚠️ Conta de destino não encontrada!");
+                    return;
+                }
+                
+                Conta contaDestino = contaDestinoOpt.get();
+                
+                // Verificar se não é a mesma conta
+                if (contaAtual.getNumeroConta() == contaDestino.getNumeroConta()) {
+                    System.out.println("\n⚠️ Não é possível transferir para a mesma conta!");
+                    return;
+                }
+                
+                // 5. Confirmar a transferência
+                System.out.println("\nResumo da transferência:");
+                System.out.println("Criptoativo: " + criptoativo.nomeCriptoativo() + " (" + criptoativo.sigla() + ")");
+                System.out.println("Quantidade: " + quantidade);
+                System.out.println("Conta de destino: " + contaDestino.getNumeroConta());
+                
+                System.out.print("\nConfirmar transferência? (S/N): ");
+                String confirmacao = scanner.nextLine();
+                
+                if (!confirmacao.equalsIgnoreCase("S")) {
+                    System.out.println("\nⓘ Transferência cancelada pelo usuário.");
+                    return;
+                }
+                
+                // 6. Realizar a transferência
+                transacaoService.transferirCriptoativo(contaAtual, contaDestino, criptoativo, quantidade);
+                
+                System.out.println("\n✅ Transferência realizada com sucesso!");
+
+            } catch (NumberFormatException e) {
+                System.out.println("\n⚠️ Número da conta inválido. Por favor, insira apenas números.");
+            } catch (SQLException e) {
+                System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
+            } catch (IllegalArgumentException e) {
+                System.out.println("\n⚠️ " + e.getMessage());
+            } catch (Exception e) {
+                System.out.println("\n❌ Erro inesperado: " + e.getMessage());
+                e.printStackTrace();
             }
-            
-            Conta contaDestino = contaDestinoOpt.get();
-            
-            // Verificar se não é a mesma conta
-            if (contaAtual.getId().equals(contaDestino.getId())) {
-                System.out.println("\n⚠️ Não é possível transferir para a mesma conta!");
-                return;
-            }
-            
-            // 5. Confirmar a transferência
-            System.out.println("\nResumo da transferência:");
-            System.out.println("Criptoativo: " + criptoativo.nomeCriptoativo() + " (" + criptoativo.sigla() + ")");
-            System.out.println("Quantidade: " + quantidade);
-            System.out.println("Conta de destino: " + contaDestino.getNumeroConta());
-            
-            System.out.print("\nConfirmar transferência? (S/N): ");
-            String confirmacao = scanner.nextLine();
-            
-            if (!confirmacao.equalsIgnoreCase("S")) {
-                System.out.println("\nⓘ Transferência cancelada pelo usuário.");
-                return;
-            }
-            
-            // 6. Realizar a transferência
-            transacaoService.transferirCriptoativo(contaAtual, contaDestino, criptoativo, quantidade);
-            
-            System.out.println("\n✅ Transferência realizada com sucesso!");
-            
         } catch (SQLException e) {
             System.out.println("\n❌ Erro no banco de dados: " + e.getMessage());
-        } catch (CorretoraException e) {
-            System.out.println("\n⚠️ " + e.getMessage());
         } catch (IllegalArgumentException e) {
             System.out.println("\n⚠️ " + e.getMessage());
         } catch (Exception e) {

@@ -12,7 +12,7 @@ public class Conta {
     // Remover geração estática de número de conta
     // private static int ultimoNumeroConta = 1000;
     private Long id; // ID do banco de dados
-    private String numeroConta; // Número da conta (pode ser String)
+    private int numeroConta; // Número da conta (NUMBER(5) no BD)
     private Usuario titular; // Adicionar referência ao titular
     // Usar ID do criptoativo como chave pode ser melhor para mapeamento
     private Map<Long, Carteira> carteiras; 
@@ -20,7 +20,7 @@ public class Conta {
     // private List<Transacao> historicoTransacoes; 
 
     // Construtor para carregar do BD
-    public Conta(Long id, String numeroConta, Usuario titular) {
+    public Conta(Long id, int numeroConta, Usuario titular) {
         this.id = id;
         this.numeroConta = numeroConta;
         this.titular = titular;
@@ -29,7 +29,7 @@ public class Conta {
     }
 
     // Construtor para nova conta (sem ID ainda)
-    public Conta(String numeroConta, Usuario titular) {
+    public Conta(int numeroConta, Usuario titular) {
         this(null, numeroConta, titular);
     }
 
@@ -56,19 +56,11 @@ public class Conta {
     // public void exibirHistoricoTransacoes() { ... }
 
     // Getters e Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getNumeroConta() {
+    public int getNumeroConta() {
         return numeroConta;
     }
 
-    public void setNumeroConta(String numeroConta) {
+    public void setNumeroConta(int numeroConta) {
         this.numeroConta = numeroConta;
     }
 
@@ -97,8 +89,8 @@ public class Conta {
     @Override
     public String toString() {
         return "Conta{" +
-               "id=" + id +
-               ", numeroConta='" + numeroConta + '\'' +
+               // "id=" + id +
+               ", numeroConta=" + numeroConta +
                ", titular=" + (titular != null ? titular.getNome() : "null") +
                ", numCarteiras=" + carteiras.size() +
                '}';
