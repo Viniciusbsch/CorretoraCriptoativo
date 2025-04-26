@@ -624,11 +624,8 @@ public class Main {
     private static void menuBancoDeDados() {
         while (true) {
             System.out.println("\n┌─────────── MENU BANCO DE DADOS ───────────────┐");
-            System.out.println("│ 1. Inserir Usuário                            │");
-            System.out.println("│ 2. Buscar Usuário por CPF                     │");
-            System.out.println("│ 3. Listar Todos os Usuários                   │");
-            System.out.println("│ 4. Atualizar Usuário                          │");
-            System.out.println("│ 5. Excluir Usuário                            │");
+            System.out.println("│ 1. Menu Usuário                               │");
+            System.out.println("│ 2. Menu Criptoativo                           │");
             System.out.println("│ 0. Voltar                                     │");
             System.out.println("└───────────────────────────────────────────────┘");
             System.out.print("Escolha uma opção: ");
@@ -637,6 +634,40 @@ public class Main {
                 int opcao = scanner.nextInt();
                 scanner.nextLine(); // Limpar buffer
 
+                switch (opcao) {
+                    case 1:
+                        menuUsuarioBD();
+                        break;
+                    case 2:
+                        menuCriptoativoBD();
+                        break;
+                    case 0:
+                        return;
+                    default:
+                        System.out.println("\n⚠️ Opção inválida!");
+                }
+            } catch (Exception e) {
+                System.out.println("\n⚠️ Entrada inválida!");
+                scanner.nextLine();
+            }
+        }
+    }
+
+    // Novo menu para usuário, agrupando as funções já existentes
+    private static void menuUsuarioBD() {
+        while (true) {
+            System.out.println("\n┌─────────── MENU USUÁRIO ───────────────┐");
+            System.out.println("│ 1. Inserir Usuário                     │");
+            System.out.println("│ 2. Buscar Usuário por CPF              │");
+            System.out.println("│ 3. Listar Todos os Usuários            │");
+            System.out.println("│ 4. Atualizar Usuário                   │");
+            System.out.println("│ 5. Excluir Usuário                     │");
+            System.out.println("│ 0. Voltar                              │");
+            System.out.println("└────────────────────────────────────────┘");
+            System.out.print("Escolha uma opção: ");
+            try {
+                int opcao = scanner.nextInt();
+                scanner.nextLine();
                 switch (opcao) {
                     case 1:
                         inserirUsuarioBD();
@@ -780,6 +811,148 @@ public class Main {
             }
         } catch (Exception e) {
             System.out.println("\n⚠️ Erro ao excluir usuário: " + e.getMessage());
+        }
+    }
+
+    // MENU CRIPTOATIVO
+    private static void menuCriptoativoBD() {
+        org.example.classes.MissaoTioPatinhas.src.dao.CriptoativoDAO criptoativoDAO = new org.example.classes.MissaoTioPatinhas.src.dao.CriptoativoDAO();
+        while (true) {
+            System.out.println("\n┌─────────── MENU CRIPTOATIVO ───────────────┐");
+            System.out.println("│ 1. Inserir Criptoativo                     │");
+            System.out.println("│ 2. Buscar Criptoativo por ID               │");
+            System.out.println("│ 3. Listar Todos os Criptoativos            │");
+            System.out.println("│ 4. Atualizar Criptoativo                   │");
+            System.out.println("│ 5. Excluir Criptoativo                     │");
+            System.out.println("│ 0. Voltar                                  │");
+            System.out.println("└────────────────────────────────────────────┘");
+            System.out.print("Escolha uma opção: ");
+            try {
+                int opcao = scanner.nextInt();
+                scanner.nextLine();
+                switch (opcao) {
+                    case 1:
+                        inserirCriptoativoBD(criptoativoDAO);
+                        break;
+                    case 2:
+                        buscarCriptoativoPorIdBD(criptoativoDAO);
+                        break;
+                    case 3:
+                        listarTodosCriptoativosBD(criptoativoDAO);
+                        break;
+                    case 4:
+                        atualizarCriptoativoBD(criptoativoDAO);
+                        break;
+                    case 5:
+                        excluirCriptoativoBD(criptoativoDAO);
+                        break;
+                    case 0:
+                        return;
+                    default:
+                        System.out.println("\n⚠️ Opção inválida!");
+                }
+            } catch (Exception e) {
+                System.out.println("\n⚠️ Entrada inválida!");
+                scanner.nextLine();
+            }
+        }
+    }
+
+    private static void inserirCriptoativoBD(org.example.classes.MissaoTioPatinhas.src.dao.CriptoativoDAO criptoativoDAO) {
+        System.out.println("\n═══ INSERIR CRIPTOATIVO ═══");
+        System.out.print("Nome do Criptoativo: ");
+        String nome = scanner.nextLine().trim();
+        System.out.print("Sigla: ");
+        String sigla = scanner.nextLine().trim();
+        System.out.print("Descrição: ");
+        String descricao = scanner.nextLine().trim();
+        System.out.print("Cotação (R$): ");
+        double cotacao = Double.parseDouble(scanner.nextLine().trim());
+        try {
+            criptoativoDAO.salvar(new Criptoativo(nome, sigla, descricao, cotacao));
+            System.out.println("\n✅ Criptoativo inserido com sucesso!");
+        } catch (Exception e) {
+            System.out.println("\n⚠️ Erro ao inserir criptoativo: " + e.getMessage());
+        }
+    }
+
+    private static void buscarCriptoativoPorIdBD(org.example.classes.MissaoTioPatinhas.src.dao.CriptoativoDAO criptoativoDAO) {
+        System.out.println("\n═══ BUSCAR CRIPTOATIVO ═══");
+        System.out.print("ID do Criptoativo: ");
+        int id = Integer.parseInt(scanner.nextLine().trim());
+        try {
+            Criptoativo cripto = criptoativoDAO.buscarPorId(id);
+            if (cripto != null) {
+                System.out.println("\nCriptoativo encontrado:");
+                System.out.println("ID: " + cripto.getId());
+                System.out.println("Nome: " + cripto.getNome());
+                System.out.println("Sigla: " + cripto.getSigla());
+                System.out.println("Descrição: " + cripto.getDescricao());
+                System.out.println("Cotação: R$ " + cripto.getCotacao());
+            } else {
+                System.out.println("\n⚠️ Criptoativo não encontrado!");
+            }
+        } catch (Exception e) {
+            System.out.println("\n⚠️ Erro ao buscar criptoativo: " + e.getMessage());
+        }
+    }
+
+    private static void listarTodosCriptoativosBD(org.example.classes.MissaoTioPatinhas.src.dao.CriptoativoDAO criptoativoDAO) {
+        try {
+            List<Criptoativo> lista = criptoativoDAO.listarTodos();
+            if (lista.isEmpty()) {
+                System.out.println("\n⚠️ Nenhum criptoativo cadastrado!");
+                return;
+            }
+            System.out.println("\n═══ CRIPTOATIVOS CADASTRADOS ═══");
+            for (Criptoativo c : lista) {
+                System.out.println("ID: " + c.getId());
+                System.out.println("Nome: " + c.getNome());
+                System.out.println("Sigla: " + c.getSigla());
+                System.out.println("Descrição: " + c.getDescricao());
+                System.out.println("Cotação: R$ " + c.getCotacao());
+                System.out.println("─────────────────────────");
+            }
+        } catch (Exception e) {
+            System.out.println("\n⚠️ Erro ao listar criptoativos: " + e.getMessage());
+        }
+    }
+
+    private static void atualizarCriptoativoBD(org.example.classes.MissaoTioPatinhas.src.dao.CriptoativoDAO criptoativoDAO) {
+        System.out.println("\n═══ ATUALIZAR CRIPTOATIVO ═══");
+        System.out.print("ID do Criptoativo: ");
+        int id = Integer.parseInt(scanner.nextLine().trim());
+        System.out.print("Novo nome: ");
+        String nome = scanner.nextLine().trim();
+        System.out.print("Nova sigla: ");
+        String sigla = scanner.nextLine().trim();
+        System.out.print("Nova descrição: ");
+        String descricao = scanner.nextLine().trim();
+        System.out.print("Nova cotação (R$): ");
+        double cotacao = Double.parseDouble(scanner.nextLine().trim());
+        try {
+            if (criptoativoDAO.atualizar(id, new Criptoativo(nome, sigla, descricao, cotacao))) {
+                System.out.println("\n✅ Criptoativo atualizado com sucesso!");
+            } else {
+                System.out.println("\n⚠️ Erro ao atualizar criptoativo!");
+            }
+        } catch (Exception e) {
+            System.out.println("\n⚠️ Erro ao atualizar criptoativo: " + e.getMessage());
+        }
+    }
+
+    private static void excluirCriptoativoBD(org.example.classes.MissaoTioPatinhas.src.dao.CriptoativoDAO criptoativoDAO) {
+        System.out.println("\n═══ EXCLUIR CRIPTOATIVO ═══");
+        System.out.print("ID do Criptoativo: ");
+        int id = Integer.parseInt(scanner.nextLine().trim());
+        try {
+            if (criptoativoDAO.excluir(id)) {
+                System.out.println("\n✅ Criptoativo excluído com sucesso!");
+            } else {
+                System.out.println("\n⚠️ Erro ao excluir criptoativo!");
+            }
+        } catch (Exception e) {
+            System.out.println("\n⚠️ Erro ao excluir criptoativo: " + e.getMessage());
         }
     }
 

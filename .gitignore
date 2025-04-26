@@ -1,0 +1,40 @@
+.qodo
+
+# Compilados Java
+*.class
+
+# Diretórios de build do Maven
+/target/
+
+# Arquivos de log
+*.log
+
+# Arquivos de configuração de IDEs
+# IntelliJ
+.idea/
+*.iml
+out/
+# Eclipse
+.project
+.classpath
+.settings/
+# VSCode
+.vscode/
+
+# Arquivos temporários
+*.tmp
+*.swp
+*~
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de backup
+*.bak
+
+# Arquivos de teste
+/test-output/
+
+# Arquivos de ambiente
+.env
