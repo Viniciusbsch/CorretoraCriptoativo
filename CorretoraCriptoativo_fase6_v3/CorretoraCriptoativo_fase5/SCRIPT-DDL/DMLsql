@@ -1,0 +1,89 @@
+-- Os dados inseridos na tabela servirão de base para avaliação do nosso trabalho, quando tudo estiver rodando popularemos pela aplicação java e apagamos estes.
+
+-- Inserindo dados na tabela t_mtp_autenticador
+INSERT INTO t_mtp_autenticador (idt_autenticador, des_senha)
+VALUES (1, 'senha123');
+
+INSERT INTO t_mtp_autenticador (idt_autenticador, des_senha)
+VALUES (2, 'abc456');
+
+-- Inserindo dados na tabela t_mtp_conta
+INSERT INTO t_mtp_conta (num_conta, idt_autenticador1, qtd_conta_registrada, qtd_reserva_criptoativo, nom_carteira, val_saldo_conta)
+VALUES (101, 1, 1, 100, 'Carteira Principal', 5000.00);
+
+INSERT INTO t_mtp_conta (num_conta, idt_autenticador1, qtd_conta_registrada, qtd_reserva_criptoativo, nom_carteira, val_saldo_conta)
+VALUES (102, 2, 1, 200, 'Carteira Secundária', 3000.00);
+
+-- Inserindo dados na tabela t_mtp_carteira
+INSERT INTO t_mtp_carteira (idt_carteira, num_conta, qtd_saldo_criptomoeda, valor_atual, des_variacao, nom_criptomoeda_adquirida, nom_carteira)
+VALUES (1, 101, 10.50, 10500.00, 5.00, 'Bitcoin', 'Carteira BTC');
+
+INSERT INTO t_mtp_carteira (idt_carteira, num_conta, qtd_saldo_criptomoeda, valor_atual, des_variacao, nom_criptomoeda_adquirida, nom_carteira)
+VALUES (2, 102, 5.75, 5750.00, 2.50, 'Ethereum', 'Carteira ETH');
+
+-- Inserindo dados na tabela t_mtp_criptoativo
+INSERT INTO t_mtp_criptoativo (idt_criptoativo, idt_carteira, sig_criptoativo, nom_criptoativo, val_saldo_criptoativo)
+VALUES (1, 1, 'BTC', 'Bitcoin', 10.50);
+
+INSERT INTO t_mtp_criptoativo (idt_criptoativo, idt_carteira, sig_criptoativo, nom_criptoativo, val_saldo_criptoativo)
+VALUES (2, 2, 'ETH', 'Ethereum', 5.75);
+
+-- Inserindo dados na tabela t_mtp_transacao
+INSERT INTO t_mtp_transacao (idt_transacao, idt_carteira, qtd_unidade_criptoativo, dat_transacao, preco_momento)
+VALUES (1, 1, 1.50, TO_DATE('11-03-2025', 'DD-MM-YYYY'), 15000.00);
+
+INSERT INTO t_mtp_transacao (idt_transacao, idt_carteira, qtd_unidade_criptoativo, dat_transacao, preco_momento)
+VALUES (2, 2, 0.75, TO_DATE('11-03-2025', 'DD-MM-YYYY'), 3000.00);
+
+-- Inserindo dados na tabela t_mtp_compra
+INSERT INTO t_mtp_compra (cod_compra, idt_transacao)
+VALUES (1, 1);
+
+INSERT INTO t_mtp_compra (cod_compra, idt_transacao)
+VALUES (2, 2);
+
+-- Inserindo dados na tabela t_mtp_venda
+INSERT INTO t_mtp_venda (cod_venda, idt_transacao)
+VALUES (1, 1);
+
+INSERT INTO t_mtp_venda (cod_venda, idt_transacao)
+VALUES (2, 2);
+
+-- Inserindo dados na tabela t_mtp_transferencia
+INSERT INTO t_mtp_transferencia (cod_transferencia, idt_transacao, num_conta_destino)
+VALUES (1, 1, 102);
+
+INSERT INTO t_mtp_transferencia (cod_transferencia, idt_transacao, num_conta_destino)
+VALUES (2, 2, 101);
+
+-- Inserindo dados na tabela t_mtp_usuario
+INSERT INTO t_mtp_usuario (num_cpf, idt_autenticador, des_nome, des_email)
+VALUES (12345678901, 1, 'Vinicius Barbosa da Cunha', 'viniciusbcunha@gmail.com');
+
+INSERT INTO t_mtp_usuario (num_cpf, idt_autenticador, des_nome, des_email)
+VALUES (98765432109, 2, 'Matheus Frazão Arruda Diniz ', 'matheus.frazao@fiap.com');
+
+-- Inserindo dados na tabela t_mtp_suporte_cliente
+INSERT INTO t_mtp_suporte_cliente (num_ticket, num_cpf, tipo_solicitacao, des_solicitacao, dat_abertura, dat_fechamento)
+VALUES (1, 12345678901, 'Problema com login', 'Não consigo acessar minha conta.', TO_DATE('11-03-2025', 'DD-MM-YYYY'), NULL);
+
+INSERT INTO t_mtp_suporte_cliente (num_ticket, num_cpf, tipo_solicitacao, des_solicitacao, dat_abertura, dat_fechamento)
+VALUES (2, 98765432109, 'Dúvida sobre transferência', 'Como faço para transferir criptomoedas?', TO_DATE('05-03-2025', 'DD-MM-YYYY'), TO_DATE('11-03-2025', 'DD-MM-YYYY'));
+
+-- Atualizando dados na tabela t_mtp_conta
+UPDATE t_mtp_conta
+SET val_saldo_conta = 6000.00
+WHERE num_conta = 101;
+
+-- Excluindo dados da tabela t_mtp_suporte_cliente
+DELETE FROM t_mtp_suporte_cliente
+WHERE num_ticket = 2;
+
+-- Selecionando dados da tabela t_mtp_carteira
+SELECT * FROM t_mtp_carteira;
+
+-- Selecionando dados da tabela t_mtp_transacao
+SELECT * FROM t_mtp_transacao;
+
+-- Selecionando dados da tabela t_mtp_usuario
+SELECT * FROM t_mtp_usuario;
